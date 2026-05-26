@@ -2,6 +2,9 @@ import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Upload, File, X, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { validateFile } from '../../lib/validation';
+import { FILE_ACCEPT_ATTR, ALLOWED_FILE_EXTENSIONS, MAX_FILE_SIZE_MB } from '../../lib/constants';
+import { searchHs, lookupHs, canonicalizeHs, HsCodeRecord } from '../../lib/hsCodes';
 
 type Option = string | { value: string; label: string };
 
@@ -190,7 +193,7 @@ export function PasswordField({ name, label, required, hint, showStrength }: Bas
 }
 
 export function FileUploaderField({ name, label, hint, accept }: { name: string; label?: string; hint?: string; accept?: string }) {
-  const { setValue, watch, formState: { errors } } = useFormContext();
+  const { setValue, watch, setError, clearErrors, formState: { errors } } = useFormContext();
   const err = getError(errors, name);
   const file = watch(name);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -198,18 +201,35 @@ export function FileUploaderField({ name, label, hint, accept }: { name: string;
   const handleFiles = (files: FileList | null) => {
     if (!files || !files[0]) return;
     const f = files[0];
-    setValue(name, {
+    const candidate = {
       fileName: f.name,
       fileSizeKB: Math.round(f.size / 1024),
       fileMime: f.type || 'application/octet-stream',
       uploadedAt: new Date().toISOString(),
-    }, { shouldValidate: true, shouldDirty: true });
+    };
+
+    // HARD GATE: mime + extension + size. ALL must pass; first failure blocks.
+    const v = validateFile(candidate);
+    if (!v.ok) {
+      setValue(name, undefined, { shouldDirty: true });
+      setError(name, { type: 'manual', message: v.errors[0].message });
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    clearErrors(name);
+    setValue(name, candidate, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
     <div className="form-group">
       {label && <label className="label">{label}</label>}
-      <input ref={inputRef} type="file" accept={accept} style={{ display: 'none' }} onChange={(e) => handleFiles(e.target.files)} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept ?? FILE_ACCEPT_ATTR}
+        style={{ display: 'none' }}
+        onChange={(e) => handleFiles(e.target.files)}
+      />
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
@@ -223,7 +243,9 @@ export function FileUploaderField({ name, label, hint, accept }: { name: string;
         >
           <Upload size={20} style={{ marginBottom: 6 }} />
           <div style={{ fontWeight: 500, color: 'var(--n-700)' }}>Fayl seçin və ya bura sürüşdürün</div>
-          <div className="help-text" style={{ marginTop: 4 }}>{hint ?? 'PDF, JPG, PNG, DOC, DOCX qəbul edilir'}</div>
+          <div className="help-text" style={{ marginTop: 4 }}>
+            {hint ?? `İcazə verilən: ${ALLOWED_FILE_EXTENSIONS.join(', ')} — maks ${MAX_FILE_SIZE_MB} MB`}
+          </div>
         </div>
       ) : (
         <div className="doc-card">
@@ -232,11 +254,126 @@ export function FileUploaderField({ name, label, hint, accept }: { name: string;
             <div className="doc-name">{file.fileName}</div>
             <div className="doc-info">{file.fileSizeKB} KB · {file.fileMime}</div>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setValue(name, undefined, { shouldDirty: true })}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setValue(name, undefined, { shouldDirty: true }); clearErrors(name); }}>
             <X size={14} />
           </button>
         </div>
       )}
+      {err && <div className="error-text">{err}</div>}
+    </div>
+  );
+}
+
+/**
+ * HS code typeahead — searchable by code prefix OR product keywords.
+ * Stores the canonicalized HS code (with dots) in form state.
+ */
+export function HsCodeField({
+  name,
+  label = 'HS Kodu',
+  required,
+  hint = 'Məhsul adı və ya HS prefiksi yazın (məs: "telefon" və ya "8517")',
+  placeholder = 'HS kodu və ya məhsul axtar...',
+}: BaseProps & {}) {
+  const { register, setValue, watch, clearErrors, formState: { errors } } = useFormContext();
+  const err = getError(errors, name);
+  const value: string = watch(name) ?? '';
+  const [query, setQuery] = React.useState<string>(value);
+  const [open, setOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    // keep input synced when form is reset
+    if (value !== query && document.activeElement !== containerRef.current?.querySelector('input')) {
+      setQuery(value);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  React.useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onDocClick);
+    return () => window.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const results = React.useMemo(() => searchHs(query, 10), [query]);
+  const matched: HsCodeRecord | undefined = React.useMemo(() => lookupHs(value), [value]);
+
+  // Register the field so RHF tracks it but render our own input — keeps zod
+  // validation while letting us own the UX.
+  React.useEffect(() => { register(name); }, [register, name]);
+
+  const commit = (code: string) => {
+    const canonical = canonicalizeHs(code) ?? code;
+    setValue(name, canonical, { shouldValidate: true, shouldDirty: true });
+    setQuery(canonical);
+    clearErrors(name);
+    setOpen(false);
+  };
+
+  return (
+    <div className="form-group" ref={containerRef} style={{ position: 'relative' }}>
+      {label && <label className="label">{label}{required && <span className="req">*</span>}</label>}
+      <input
+        className={cn('input', err && 'error')}
+        placeholder={placeholder}
+        autoComplete="off"
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setQuery(next);
+          setOpen(true);
+          // also push raw value into form state so zod sees it; canonicalize on blur/select
+          setValue(name, next, { shouldValidate: true, shouldDirty: true });
+        }}
+        onBlur={() => {
+          const canonical = canonicalizeHs(query);
+          if (canonical && canonical !== query) {
+            setValue(name, canonical, { shouldValidate: true, shouldDirty: true });
+            setQuery(canonical);
+          }
+        }}
+      />
+      {open && results.length > 0 && (
+        <div
+          role="listbox"
+          style={{
+            position: 'absolute', zIndex: 20, top: '100%', left: 0, right: 0,
+            marginTop: 4, background: 'var(--n-0)', border: '1px solid var(--n-200)',
+            borderRadius: 8, boxShadow: 'var(--shadow-md)', maxHeight: 280, overflowY: 'auto',
+          }}
+        >
+          {results.map((r) => (
+            <button
+              key={r.code}
+              type="button"
+              onClick={() => commit(r.code)}
+              style={{
+                display: 'flex', width: '100%', textAlign: 'left',
+                padding: '8px 12px', gap: 10, background: 'none', border: 'none',
+                borderBottom: '1px solid var(--n-100)', cursor: 'pointer',
+              }}
+            >
+              <span className="mono" style={{ minWidth: 90, color: 'var(--brand-700)', fontWeight: 600 }}>{r.code}</span>
+              <span style={{ flex: 1 }}>
+                <span style={{ fontWeight: 500, color: 'var(--n-900)' }}>{r.label}</span>
+                <span style={{ fontSize: 12, color: 'var(--n-500)', display: 'block' }}>
+                  {r.category} · {r.tariffRate}% rüsum · {r.riskTier === 'high' ? 'yüksək' : r.riskTier === 'medium' ? 'orta' : 'aşağı'} risk
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {matched && !err && (
+        <div className="help-text" style={{ marginTop: 4, color: 'var(--brand-700)' }}>
+          ✓ {matched.label} · {matched.category} · rüsum {matched.tariffRate}%
+        </div>
+      )}
+      {hint && !matched && !err && <div className="help-text">{hint}</div>}
       {err && <div className="error-text">{err}</div>}
     </div>
   );

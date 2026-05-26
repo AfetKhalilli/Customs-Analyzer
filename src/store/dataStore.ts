@@ -10,6 +10,7 @@ import { detectPatterns, pcaRiskBand, pcaDutyAtRisk } from '../lib/pca';
 import { seedUsers, seedDeclarations, seedLogs, seedNotifications } from '../data/seed';
 import { DEFAULT_THRESHOLDS } from '../lib/referenceData';
 import { DEPARTMENTS as DEFAULT_DEPARTMENTS } from '../types';
+import { validateDeclaration, ValidationError } from '../lib/validation';
 
 interface DataState {
   initialized: boolean;
@@ -219,16 +220,38 @@ export const useDataStore = create<DataState>()(
       },
 
       addDeclaration: (d) => {
+        // ── HARD GATE: no payload reaches persistence without passing the
+        // centralized validator. This kills devtools / API-bypass writes.
+        const v = validateDeclaration({
+          ownerEntityType: d.ownerEntityType,
+          kind: d.kind,
+          department: d.department,
+          declarationDate: d.declarationDate,
+          customsPoint: d.customsPoint,
+          referenceNumber: d.referenceNumber,
+          documents: d.documents,
+          shipment: d.shipment,
+          totals: d.totals,
+        });
+        if (!v.ok) {
+          throw new ValidationError(v.errors);
+        }
+
         const id = uid('decl');
         const now = new Date().toISOString();
         const inspectors = get().users.filter((u) => u.role === 'inspector' && u.entityType === 'individual' && (u as IndividualUser).department === d.department);
-        // round robin: pick the one with fewest active assignments
+        // Balanced assignment: pick the lowest-load inspector; when several are
+        // tied at the minimum, randomize among them so the same person isn't
+        // hit repeatedly with identical timing.
         const activeCounts = inspectors.map((i) => ({
           inspector: i,
           count: get().declarations.filter((dd) => dd.assignedInspectorId === i.id && !['Tamamlanmış', 'Rədd'].includes(dd.status)).length,
         }));
-        activeCounts.sort((a, b) => a.count - b.count);
-        const assigned = activeCounts[0]?.inspector;
+        const minCount = activeCounts.length > 0 ? Math.min(...activeCounts.map((x) => x.count)) : 0;
+        const lowest = activeCounts.filter((x) => x.count === minCount);
+        const assigned = lowest.length > 0
+          ? lowest[Math.floor(Math.random() * lowest.length)].inspector
+          : undefined;
 
         const ai = runAI({ ...d, ownerEntityType: d.ownerEntityType }, get().thresholds);
 
@@ -280,13 +303,51 @@ export const useDataStore = create<DataState>()(
         return id;
       },
 
-      updateDeclaration: (id, patch) => set((s) => ({
-        declarations: s.declarations.map((d) => d.id === id ? { ...d, ...patch } : d),
-      })),
+      updateDeclaration: (id, patch) => {
+        // If the patch touches validation-relevant fields, the merged result
+        // must pass validation. Status/meta-only patches are allowed through.
+        const cur = get().declarations.find((d) => d.id === id);
+        if (!cur) return;
+        const next = { ...cur, ...patch };
+        const touchesCore =
+          'documents' in patch || 'shipment' in patch || 'totals' in patch ||
+          'kind' in patch || 'department' in patch || 'declarationDate' in patch ||
+          'customsPoint' in patch;
+        if (touchesCore) {
+          const v = validateDeclaration({
+            ownerEntityType: next.ownerEntityType,
+            kind: next.kind,
+            department: next.department,
+            declarationDate: next.declarationDate,
+            customsPoint: next.customsPoint,
+            referenceNumber: next.referenceNumber,
+            documents: next.documents,
+            shipment: next.shipment,
+            totals: next.totals,
+          });
+          if (!v.ok) throw new ValidationError(v.errors);
+        }
+        set((s) => ({
+          declarations: s.declarations.map((d) => d.id === id ? next : d),
+        }));
+      },
 
       resubmitDeclaration: (id, actor) => {
         const d = get().declarations.find((x) => x.id === id);
         if (!d) return;
+        // Resubmission must also re-validate.
+        const v = validateDeclaration({
+          ownerEntityType: d.ownerEntityType,
+          kind: d.kind,
+          department: d.department,
+          declarationDate: d.declarationDate,
+          customsPoint: d.customsPoint,
+          referenceNumber: d.referenceNumber,
+          documents: d.documents,
+          shipment: d.shipment,
+          totals: d.totals,
+        });
+        if (!v.ok) throw new ValidationError(v.errors);
         const ai = runAI(d, get().thresholds);
         set((s) => ({
           declarations: s.declarations.map((dd) =>
@@ -321,6 +382,23 @@ export const useDataStore = create<DataState>()(
         const isOverride = actor.role === 'departmentHead' || actor.role === 'boss';
         if (!isOverride && !allowed.includes(next)) {
           return { ok: false, error: `Status keçidi qadağandır: ${d.status} → ${next}` };
+        }
+        // Cannot approve a declaration that no longer passes validation.
+        if (next === 'Təsdiq') {
+          const v = validateDeclaration({
+            ownerEntityType: d.ownerEntityType,
+            kind: d.kind,
+            department: d.department,
+            declarationDate: d.declarationDate,
+            customsPoint: d.customsPoint,
+            referenceNumber: d.referenceNumber,
+            documents: d.documents,
+            shipment: d.shipment,
+            totals: d.totals,
+          });
+          if (!v.ok) {
+            return { ok: false, error: `Validasiya keçmir (${v.errors.length} səhv) — təsdiq mümkün deyil` };
+          }
         }
 
         const patch: Partial<Declaration> = { status: next };
@@ -555,8 +633,9 @@ export const useDataStore = create<DataState>()(
     {
       name: 'ca-data',
       // Bump version when shape changes so existing users get re-seeded with fixed DH FINs,
-      // new doc.visibleTo fields, AI explainability fields, dynamic departments, thresholds.
-      version: 2,
+      // new doc.visibleTo fields, AI explainability fields, dynamic departments, thresholds,
+      // and (v3) the centralized validation rules + critical-override AI.
+      version: 3,
       migrate: (_persisted, _ver) => undefined as any, // discard any earlier persisted state
     }
   )

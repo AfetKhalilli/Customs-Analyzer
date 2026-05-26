@@ -12,6 +12,7 @@ import { TextField, TextareaField, SelectField } from '../../components/forms/Fi
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay, cn } from '../../lib/utils';
 import { DOCUMENT_TYPES, DOCUMENT_GROUPS, RISK_META } from '../../lib/constants';
 import { toast } from '../../store/toastStore';
+import { validateDeclaration } from '../../lib/validation';
 import type { IndividualUser } from '../../types';
 
 export function DeclarationDetail() {
@@ -103,6 +104,19 @@ export function DeclarationDetail() {
   const ringColor = RISK_META[decl.ai.riskLevel].text;
   const ringAngle = (decl.ai.score / 100) * 360;
 
+  // L1 validation report — deterministic, computed from current declaration state.
+  const validation = React.useMemo(() => validateDeclaration({
+    ownerEntityType: decl.ownerEntityType,
+    kind: decl.kind,
+    department: decl.department,
+    declarationDate: decl.declarationDate,
+    customsPoint: decl.customsPoint,
+    referenceNumber: decl.referenceNumber,
+    documents: decl.documents,
+    shipment: decl.shipment,
+    totals: decl.totals,
+  }), [decl]);
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
@@ -144,6 +158,23 @@ export function DeclarationDetail() {
               <div className="font-bold">{decl.totals.totalDeclaredValue.toFixed(2)} {decl.totals.currency}</div>
             </div>
           </div>
+
+          {!validation.ok && (
+            <div className="banner error mt-3">
+              <AlertTriangle size={20} />
+              <div className="b-body">
+                <div className="b-title">Sistem validasiyası uğursuz ({validation.errors.length} səhv) — bu bəyannamə təsdiq edilə bilməz</div>
+                <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+                  {validation.errors.slice(0, 8).map((e, i) => (
+                    <li key={i}><code>{e.code}</code> — {e.message}</li>
+                  ))}
+                  {validation.errors.length > 8 && (
+                    <li className="text-muted">… +{validation.errors.length - 8} əlavə səhv</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {decl.status === 'Düzəliş Tələb Olunur' && decl.correctionRequest && (
             <div className="banner warning mt-3">

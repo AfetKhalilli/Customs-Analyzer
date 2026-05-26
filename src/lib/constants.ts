@@ -1,4 +1,7 @@
-import type { DocumentTypeCode, DocumentGroup, DeclarationStatus, RiskLevel, PCAStatus, PCARiskBand } from '../types';
+import type {
+  DocumentTypeCode, DocumentGroup, DeclarationStatus, RiskLevel,
+  PCAStatus, PCARiskBand, DeclarationKind, EntityType, ShippingRoute,
+} from '../types';
 
 export const CITIES = [
   'Bakı', 'Gəncə', 'Sumqayıt', 'Şəki', 'Mingəçevir', 'Lənkəran',
@@ -133,6 +136,58 @@ export const PCA_STATUS_META: Record<PCAStatus, { bg: string; text: string }> = 
   'Escalated':       { bg: '#ffe4e6', text: '#9f1239' },
   'Closed':          { bg: '#e5e7eb', text: '#374151' },
 };
+
+// ============== File upload rules (enforced in UI + validator) ==============
+export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'] as const;
+
+export const ALLOWED_MIME_TYPES: ReadonlyArray<string> = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+];
+
+export const EXTENSION_TO_MIME: Record<string, string[]> = {
+  pdf: ['application/pdf'],
+  doc: ['application/msword'],
+  docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  xls: ['application/vnd.ms-excel'],
+  xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+  jpg: ['image/jpeg'],
+  jpeg: ['image/jpeg'],
+  png: ['image/png'],
+};
+
+export const MAX_FILE_SIZE_MB = 15;
+export const MAX_FILE_SIZE_KB = MAX_FILE_SIZE_MB * 1024;
+
+export const FILE_ACCEPT_ATTR = ALLOWED_FILE_EXTENSIONS.map((e) => '.' + e).join(',');
+
+// ============== Mandatory document matrix (kind × entityType) ==============
+export const DOC_REQUIREMENTS: Record<DeclarationKind, Record<EntityType, DocumentTypeCode[]>> = {
+  Idxal: {
+    individual: ['INVOICE', 'SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+    company:    ['COMMERCIAL_INVOICE', 'CONTRACT', 'SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+  },
+  Ixrac: {
+    individual: ['INVOICE', 'SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+    company:    ['COMMERCIAL_INVOICE', 'CONTRACT', 'SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+  },
+  Tranzit: {
+    individual: ['SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+    company:    ['SHIPPING_DOCUMENT', 'CUSTOMS_DECLARATION'],
+  },
+};
+
+export function requiredDocsFor(kind: DeclarationKind, entityType: EntityType): DocumentTypeCode[] {
+  return DOC_REQUIREMENTS[kind][entityType];
+}
+
+// Shipping plausibility moved to src/lib/shippingRoutes.ts — re-export for back-compat.
+export { SHIPPING_ROUTES as SHIPPING_PLAUSIBILITY, findRoute } from './shippingRoutes';
 
 export const PCA_RISK_META: Record<PCARiskBand, { bg: string; text: string }> = {
   'Aşağı':   { bg: '#d1fae5', text: '#065f46' },

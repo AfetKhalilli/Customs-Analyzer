@@ -6,12 +6,12 @@ import { Plus, Trash2, FileText } from 'lucide-react';
 import { declStep1Schema, declStep3Schema, declStep4Schema } from '../../lib/schemas';
 import {
   TextField, NumberField, SelectField, DateField, TextareaField, RadioCardsField,
-  FileUploaderField,
+  FileUploaderField, HsCodeField,
 } from '../../components/forms/Fields';
 import { Modal, RiskBadge, ChannelPill } from '../../components/ui/Primitives';
 import {
   CUSTOMS_POINTS, COUNTRIES, TRANSPORT_MODES, CURRENCIES, UNITS_OF_MEASURE,
-  DOCUMENT_TYPES, DOCUMENT_GROUPS, PACKAGE_TYPES, INCOTERMS,
+  DOCUMENT_GROUPS, PACKAGE_TYPES, INCOTERMS,
   SHIPPING_DOC_TYPES, CERTIFICATE_TYPES, PROCEDURE_CODES, CONTRACT_TYPES, PAYMENT_TERMS,
 } from '../../lib/constants';
 import { useCurrentUser } from '../../store/authStore';
@@ -19,8 +19,12 @@ import { useDataStore } from '../../store/dataStore';
 import { runAI } from '../../lib/ai';
 import { toast } from '../../store/toastStore';
 // dynamic departments come via Step1 -> useDataStore
-import type { AttachedDocument, DocumentTypeCode, DocumentGroup, Role } from '../../types';
+import type { AttachedDocument, DocumentTypeCode, DocumentGroup, Role, ValidationIssue } from '../../types';
 import { uid } from '../../lib/utils';
+import {
+  validateDocumentsAgainstPolicy, validateDocumentFields, validateDeclaration, ValidationError,
+} from '../../lib/validation';
+import { DOC_REQUIREMENTS, DOCUMENT_TYPES } from '../../lib/constants';
 
 interface WizardState {
   step1: any | null;
@@ -36,6 +40,7 @@ export function DeclarationWizard() {
 
   const [step, setStep] = React.useState(1);
   const [state, setState] = React.useState<WizardState>({ step1: null, step2: [], step3: null, step4: null });
+  const [submitErrors, setSubmitErrors] = React.useState<ValidationIssue[]>([]);
 
   return (
     <div className="container-narrow">
@@ -65,10 +70,12 @@ export function DeclarationWizard() {
           initial={state.step4}
           state={state}
           ownerEntityType={user.entityType}
+          submitErrors={submitErrors}
+          clearSubmitErrors={() => setSubmitErrors([])}
           onBack={() => setStep(3)}
           onSubmit={(s4) => {
             const ownerDisplayName = user.entityType === 'individual' ? `${user.firstName} ${user.lastName}` : user.companyName;
-            const id = addDeclaration({
+            const payload = {
               ownerId: user.id, ownerEntityType: user.entityType, ownerDisplayName,
               kind: state.step1.kind, department: state.step1.department,
               declarationDate: state.step1.declarationDate,
@@ -77,9 +84,29 @@ export function DeclarationWizard() {
               documents: state.step2,
               shipment: { ...state.step3 },
               totals: { ...s4 },
-            });
-            toast.success('Bəyannamə təqdim edildi');
-            navigate(`/declaration/${id}`);
+            };
+
+            // ── FINAL SUBMISSION GATE (UI layer) ────────────────────────────
+            const v = validateDeclaration(payload);
+            if (!v.ok) {
+              setSubmitErrors(v.errors);
+              toast.error(`Bəyannamə təqdim edilə bilməz: ${v.errors.length} səhv`);
+              return;
+            }
+
+            try {
+              const id = addDeclaration(payload);
+              setSubmitErrors([]);
+              toast.success('Bəyannamə təqdim edildi');
+              navigate(`/declaration/${id}`);
+            } catch (e) {
+              if (e instanceof ValidationError) {
+                setSubmitErrors(e.issues);
+                toast.error(`Sistem validasiyası uğursuz: ${e.issues.length} səhv`);
+              } else {
+                throw e;
+              }
+            }
           }}
         />
       )}
@@ -91,6 +118,8 @@ function Step1({ initial, onNext }: { initial: any | null; onNext: (d: any) => v
   const departments = useDataStore((s) => s.departments);
   const methods = useForm({
     resolver: zodResolver(declStep1Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: initial ?? {
       kind: 'Idxal', department: '', declarationDate: new Date().toISOString().slice(0, 10),
       customsPoint: '', referenceNumber: '',
@@ -130,6 +159,8 @@ function Step1({ initial, onNext }: { initial: any | null; onNext: (d: any) => v
 function Step3({ initial, onBack, onNext }: { initial: any | null; onBack: () => void; onNext: (d: any) => void }) {
   const methods = useForm({
     resolver: zodResolver(declStep3Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: initial ?? {
       originCountry: '', destinationCountry: '', transportMode: '', transportDocumentNumber: '',
       consignor: '', consignorAddress: '', consignee: '', consigneeAddress: '',
@@ -173,18 +204,30 @@ function Step3({ initial, onBack, onNext }: { initial: any | null; onBack: () =>
   );
 }
 
-function Step4({ initial, state, ownerEntityType, onBack, onSubmit }: {
+function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitErrors, onBack, onSubmit }: {
   initial: any | null; state: WizardState; ownerEntityType: 'individual' | 'company';
+  submitErrors: ValidationIssue[];
+  clearSubmitErrors: () => void;
   onBack: () => void; onSubmit: (d: any) => void;
 }) {
   const methods = useForm({
     resolver: zodResolver(declStep4Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: initial ?? {
       currency: 'USD', totalDeclaredValue: 0, totalQuantity: 0,
       unitOfMeasure: 'ədəd', hsCode: '', originCertificateNo: '', additionalNotes: '',
     },
   });
   const values = methods.watch();
+
+  // Clear stale "submit errors" the moment the user starts editing again —
+  // prevents the inline error list from looking permanent after a fix.
+  React.useEffect(() => {
+    if (submitErrors.length > 0) clearSubmitErrors();
+    // intentionally depending only on serialized values so we react to edits
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(values)]);
 
   // live AI preview
   const aiPreview = React.useMemo(() => {
@@ -208,7 +251,7 @@ function Step4({ initial, state, ownerEntityType, onBack, onSubmit }: {
           </div>
           <div className="form-row cols-2">
             <NumberField name="totalQuantity" label="Ümumi miqdar" required step="0.01" />
-            <TextField name="hsCode" label="HS Kodu (ixtiyari)" hint="Format: NNNN.NN və ya NNNN.NN.NN" />
+            <HsCodeField name="hsCode" label="HS Kodu" required />
           </div>
           <TextField name="originCertificateNo" label="Mənşə sertifikatı № (ixtiyari)" />
           <TextareaField name="additionalNotes" label="Əlavə qeydlər (ixtiyari)" placeholder="Müfəttişə qeyd və ya kontekst..." />
@@ -231,10 +274,23 @@ function Step4({ initial, state, ownerEntityType, onBack, onSubmit }: {
               ))}
             </div>
           </div>
+
+          {submitErrors.length > 0 && (
+            <div className="banner error" style={{ marginTop: 16 }}>
+              <strong>Bəyannamə təqdim edilə bilməz — aşağıdakı səhvləri düzəldin:</strong>
+              <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+                {submitErrors.map((e, i) => (
+                  <li key={i}><code>{e.code}</code> — {e.message}{e.field ? ` (${e.field})` : ''}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <div className="card-footer flex justify-between">
           <button type="button" className="btn btn-secondary" onClick={onBack}>← Geri</button>
-          <button type="submit" className="btn btn-success">Bəyannaməni təqdim et</button>
+          <button type="submit" className="btn btn-success" disabled={submitErrors.length > 0}>
+            Bəyannaməni təqdim et
+          </button>
         </div>
       </form>
     </FormProvider>
@@ -261,17 +317,34 @@ function Step2({ entityType, docs, kind, onChange, onBack, onNext }: {
   };
   const handleRemove = (id: string) => onChange(docs.filter((d) => d.id !== id));
 
+  // Required documents derived from the central matrix (kind × entityType).
+  const requiredCodes: DocumentTypeCode[] = kind
+    ? DOC_REQUIREMENTS[kind as keyof typeof DOC_REQUIREMENTS][entityType]
+    : [];
+  const presentCodes = new Set(docs.map((d) => d.typeCode));
+  const missingCodes = requiredCodes.filter((c) => !presentCodes.has(c));
+
   const proceed = () => {
     setError(null);
-    if (docs.length === 0) { setError('Ən azı bir sənəd yükləməlisiniz'); return; }
-    if ((kind === 'Idxal' || kind === 'Ixrac') && !docs.some((d) => d.group === 'CUSTOMS')) {
-      setError('İdxal/İxrac üçün ən azı bir Gömrük sənədi tələb olunur');
+    if (!kind) { setError('Əvvəlcə Addım 1-i tamamlayın'); return; }
+
+    // 1) Required documents per matrix
+    const policy = validateDocumentsAgainstPolicy(kind as any, entityType, docs);
+    if (!policy.ok) {
+      setError(policy.errors.map((e) => e.message).join(' • '));
       return;
     }
-    if (entityType === 'company' && !docs.some((d) => d.group === 'FINANCIAL')) {
-      setError('Hüquqi şəxslər üçün ən azı bir Maliyyə sənədi tələb olunur');
-      return;
+
+    // 2) Each uploaded document must be field-complete + file-valid.
+    for (const d of docs) {
+      const dv = validateDocumentFields(d);
+      if (!dv.ok) {
+        const lbl = DOCUMENT_TYPES.find((t) => t.code === d.typeCode)?.label ?? d.typeCode;
+        setError(`"${lbl}" sənədində səhv: ${dv.errors[0].message}`);
+        return;
+      }
     }
+
     onNext();
   };
 
@@ -291,6 +364,17 @@ function Step2({ entityType, docs, kind, onChange, onBack, onNext }: {
         </div>
 
         {error && <div className="banner error">{error}</div>}
+
+        {missingCodes.length > 0 && (
+          <div className="banner warning" style={{ marginBottom: 10 }}>
+            <strong>Bu bəyannamə üçün tələb olunan sənədlər çatışmır:</strong>
+            <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+              {missingCodes.map((c) => (
+                <li key={c}>{DOCUMENT_TYPES.find((t) => t.code === c)?.label ?? c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {docs.length === 0 && (
           <div className="empty-state" style={{ padding: 40 }}>
@@ -323,7 +407,15 @@ function Step2({ entityType, docs, kind, onChange, onBack, onNext }: {
       </div>
       <div className="card-footer flex justify-between">
         <button type="button" className="btn btn-secondary" onClick={onBack}>← Geri</button>
-        <button type="button" className="btn" onClick={proceed}>Növbəti →</button>
+        <button
+          type="button"
+          className="btn"
+          onClick={proceed}
+          disabled={missingCodes.length > 0 || docs.length === 0}
+          title={missingCodes.length > 0 ? 'Tələb olunan sənədlər çatışmır' : undefined}
+        >
+          Növbəti →
+        </button>
       </div>
 
       <Modal
@@ -380,7 +472,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
     }
     const { _file, _visibleTo, ...fields } = values;
     const visibleTo = (_visibleTo as Role[] | undefined) ?? ['user', 'inspector', 'departmentHead', 'boss', 'pca'];
-    const doc: AttachedDocument = {
+    const candidate: AttachedDocument = {
       id: uid('doc'),
       typeCode,
       group: docMeta.group,
@@ -389,10 +481,18 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
       fileMime: _file.fileMime,
       uploadedAt: _file.uploadedAt,
       fields,
-      isComplete: true,
+      isComplete: false,
       visibleTo,
     };
-    onSave(doc);
+    // HARD GATE: each document must be field-complete and have a valid file
+    // before it can be attached to the declaration.
+    const dv = validateDocumentFields(candidate);
+    if (!dv.ok) {
+      methods.setError('_file', { type: 'manual', message: dv.errors[0].message });
+      return;
+    }
+    candidate.isComplete = true;
+    onSave(candidate);
   });
 
   return (
@@ -478,7 +578,7 @@ function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
           <TextField name="declarationNumber" label="Bəyannamə №" required />
           <SelectField name="procedureCode" label="Prosedur kodu" required options={PROCEDURE_CODES} />
         </div>
-        <TextField name="hsCode" label="HS Kodu" required hint="Format: NNNN.NN" />
+        <HsCodeField name="hsCode" label="HS Kodu" required />
         <TextField name="goodsDescription" label="Malların təsviri" required />
       </>
     );

@@ -204,6 +204,30 @@ export type Sector =
   | 'İstehlak malları' | 'Ağır sənaye' | 'Texnologiya'
   | 'Səhiyyə' | 'Aqro-sənaye' | 'Tikinti';
 
+// ============== Validation ==============
+export interface ValidationIssue {
+  code: string;
+  field?: string;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+export interface ValidationResult {
+  ok: boolean;
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+}
+
+// ============== Shipping plausibility ==============
+export interface ShippingRoute {
+  from: string;
+  to: string;
+  allowedModes: string[];
+  transitDaysRange: [number, number];
+  freightCostRangeUSD: [number, number];
+  notes?: string;
+}
+
 export interface CommentEntry {
   id: string;
   declarationId: string;

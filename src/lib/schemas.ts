@@ -5,7 +5,25 @@ const finRegex = /^[A-Z0-9]{7}$/;
 const tinRegex = /^\d{10}$/;
 const phoneRegex = /^\+994\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}$/;
 const passportRegex = /^[A-Z]{2}\d{7}$/;
-const hsCodeRegex = /^\d{4}\.\d{2}(\.\d{2})?$/;
+// HS codes can be 4 / 6 / 8 / 10 digit per Azerbaijan customs nomenclature,
+// expressed with or without dots. Both "8517.12" and "8517120000" are valid;
+// they're canonicalized centrally by lookupHs() in src/lib/hsCodes.ts.
+const hsCodeRegex = /^\d{4}(\.\d{2}){0,3}$|^\d{6}$|^\d{8}$|^\d{10}$/;
+
+// Rejects strings that are only symbols / whitespace / repetition like @@@ ### $$$
+const junkText = (v: string): boolean => {
+  const s = v.trim();
+  if (!s) return false;
+  // must contain at least one letter (latin/azərbaycan) or digit
+  if (!/[A-Za-zçğşöüəıİÇĞŞÖÜƏ0-9]/.test(s)) return false;
+  // reject if >40% of chars are non-alphanumeric symbols (excluding spaces/.,-/'’)
+  const symbols = (s.match(/[^A-Za-zçğşöüəıİÇĞŞÖÜƏ0-9\s.,'’\-/]/g) || []).length;
+  if (symbols / s.length > 0.4) return false;
+  return true;
+};
+
+const notJunk = (msg = 'Düzgün dəyər daxil edin') =>
+  z.string().refine(junkText, { message: msg });
 
 export const individualStep1Schema = z.object({
   firstName: z.string().min(2, 'Ən azı 2 simvol').max(50).regex(nameRegex, 'Yalnız hərflər'),
@@ -109,10 +127,10 @@ export const declStep3Schema = z
     destinationCountry: z.string().min(1, 'Təyinat ölkəsini seçin'),
     transportMode: z.string().min(1, 'Nəqliyyat növünü seçin'),
     transportDocumentNumber: z.string().min(5, 'Ən azı 5 simvol').max(30).regex(/^[A-Za-z0-9/\-]+$/, 'Yalnız hərf, rəqəm, / və -'),
-    consignor: z.string().min(3, 'Ən azı 3 simvol').max(200),
-    consignorAddress: z.string().min(5, 'Ən azı 5 simvol'),
-    consignee: z.string().min(3, 'Ən azı 3 simvol').max(200),
-    consigneeAddress: z.string().min(5, 'Ən azı 5 simvol'),
+    consignor: z.string().min(3, 'Ən azı 3 simvol').max(200).refine(junkText, 'Düzgün ad daxil edin'),
+    consignorAddress: z.string().min(5, 'Ən azı 5 simvol').refine(junkText, 'Düzgün ünvan daxil edin'),
+    consignee: z.string().min(3, 'Ən azı 3 simvol').max(200).refine(junkText, 'Düzgün ad daxil edin'),
+    consigneeAddress: z.string().min(5, 'Ən azı 5 simvol').refine(junkText, 'Düzgün ünvan daxil edin'),
     containerNumber: z.string().optional().or(z.literal('')),
     packageCount: z.coerce.number().int().positive('Müsbət tam ədəd'),
     grossWeightKg: z.coerce.number().positive('Müsbət rəqəm').max(1000000),
@@ -125,7 +143,7 @@ export const declStep4Schema = z.object({
   totalDeclaredValue: z.coerce.number().positive('Müsbət rəqəm'),
   totalQuantity: z.coerce.number().positive('Müsbət rəqəm'),
   unitOfMeasure: z.string().min(1, 'Ölçü vahidi seçin'),
-  hsCode: z.string().regex(hsCodeRegex, 'Format: NNNN.NN').optional().or(z.literal('')),
+  hsCode: z.string().regex(hsCodeRegex, 'HS kodu tələb olunur (4, 6, 8 və ya 10 rəqəm — məs: 8517.12)'),
   originCertificateNo: z.string().optional().or(z.literal('')),
   additionalNotes: z.string().max(1000).optional().or(z.literal('')),
 });

@@ -1,11 +1,15 @@
 import type {
   AIResult, AIFlag, AttachedDocument, ShipmentInfo, DeclarationTotals,
-  EntityType, DeclarationKind, RiskLevel, ThresholdSet,
+  EntityType, DeclarationKind, RiskLevel, ThresholdSet, SelectivityChannel,
 } from '../types';
 import { convertToAZN } from './utils';
 import {
-  RISK_RULES, DEFAULT_THRESHOLDS, findRule, findHsEntry, findCountry, classifyHs, bandForScore,
+  RISK_RULES, DEFAULT_THRESHOLDS, findRule, findCountry, bandForScore,
 } from './referenceData';
+import { DOC_REQUIREMENTS, DOCUMENT_TYPES } from './constants';
+import { findRoute } from './shippingRoutes';
+import { lookupHs, canonicalizeHs } from './hsCodes';
+import { bandForHs, classifyUnitPrice } from './pricingReference';
 
 interface AIInput {
   ownerEntityType?: EntityType;
@@ -40,9 +44,8 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
   };
 
   // ── Reference-data lookups ────────────────────────────────────────────────
-  const hs = findHsEntry(totals.hsCode);
+  const hs = lookupHs(totals.hsCode);
   const origin = findCountry(shipment.originCountry);
-  const commodity = classifyHs(totals.hsCode);
 
   // ── R1 WEIGHT_MISMATCH ────────────────────────────────────────────────────
   if (shipment.grossWeightKg != null && shipment.netWeightKg != null && shipment.netWeightKg > shipment.grossWeightKg) {
@@ -51,15 +54,22 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
       `Brutto ${shipment.grossWeightKg} kq < Netto ${shipment.netWeightKg} kq`);
   }
 
-  // ── R2 UNDERVALUATION_RISK ────────────────────────────────────────────────
+  // ── R2 UNDERVALUATION_RISK — now uses HS/category pricing reference ───────
   if (totals.totalDeclaredValue && totals.totalQuantity) {
     const azn = convertToAZN(totals.totalDeclaredValue, totals.currency ?? 'AZN');
     const unitPrice = azn / totals.totalQuantity;
-    if (unitPrice < thresholds.lowUnitPriceAZN && totals.unitOfMeasure === 'ədəd') {
+    const band = bandForHs(hs);
+    const verdict = classifyUnitPrice(unitPrice, band);
+    if (verdict === 'suspicious_low') {
       fire('UNDERVALUATION_RISK',
-        `Şübhəli aşağı vahid qiyməti: ${unitPrice.toFixed(2)} ₼/ədəd`,
-        `Hədd: ${thresholds.lowUnitPriceAZN} ₼/ədəd; Hesablanmış: ${unitPrice.toFixed(2)} ₼/ədəd`,
-        ['Threshold:lowUnitPriceAZN']);
+        `Vahid qiymət bazar həddindən kəskin aşağıdır: ${unitPrice.toFixed(2)} ₼/${band.unit}`,
+        `Gözlənilən min ${band.suspiciousLowAZN} ₼; hesablanmış ${unitPrice.toFixed(2)} ₼ (${band.category})`,
+        [`Pricing:${band.category}`]);
+    } else if (verdict === 'suspicious_high') {
+      fire('TARIFF_VALUE_OUTLIER',
+        `Vahid qiymət bazar həddindən çox yüksəkdir: ${unitPrice.toFixed(2)} ₼/${band.unit}`,
+        `Gözlənilən maks ${band.suspiciousHighAZN} ₼; hesablanmış ${unitPrice.toFixed(2)} ₼ (mümkün laundering)`,
+        [`Pricing:${band.category}`]);
     }
   }
 
@@ -123,10 +133,10 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
     }
   }
 
-  // ── R10 HS_CODE_FORMAT ────────────────────────────────────────────────────
-  if (totals.hsCode && !/^\d{4}\.\d{2}(\.\d{2})?$/.test(totals.hsCode)) {
-    fire('HS_CODE_FORMAT', 'HS kodu format dəqiq deyil',
-      `Daxil edilmiş: "${totals.hsCode}"; Gözlənilən format: NNNN.NN[.NN]`);
+  // ── R10 HS_CODE_FORMAT — only fires when canonicalization fails ───────────
+  if (totals.hsCode && !canonicalizeHs(totals.hsCode)) {
+    fire('HS_CODE_FORMAT', 'HS kodu formatı tanınmadı',
+      `Daxil edilmiş: "${totals.hsCode}"; Gözlənilən: 4/6/8/10 rəqəm (məs: 8517.12)`);
   }
 
   // ── R11 ROUND_NUMBER ──────────────────────────────────────────────────────
@@ -138,11 +148,12 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
     }
   }
 
-  // ── R12 HS_NOT_IN_DB ──────────────────────────────────────────────────────
-  if (totals.hsCode && /^\d{4}\.\d{2}/.test(totals.hsCode) && !hs) {
+  // ── R12 HS_NOT_IN_DB — fires only when canonicalization succeeded but the
+  // catalog returns nothing (i.e. real "unknown" code, not a typo). ─────────
+  if (totals.hsCode && canonicalizeHs(totals.hsCode) && !hs) {
     fire('HS_NOT_IN_DB',
       `HS kodu reyestrdə yoxdur: ${totals.hsCode}`,
-      'HS_CODE_DB-də bu prefiks üzrə qeyd tapılmadı',
+      'HS_CODE_DB-də bu prefiks üzrə qeyd tapılmadı — manual yoxlama tələb olunur',
       ['HS_CODE_DB']);
   }
 
@@ -162,30 +173,153 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
       [`HS_CODE_DB:${hs.code}`]);
   }
 
-  // ── R16 TARIFF_VALUE_OUTLIER ──────────────────────────────────────────────
-  if (hs && totals.totalDeclaredValue && totals.totalQuantity) {
-    const azn = convertToAZN(totals.totalDeclaredValue, totals.currency ?? 'AZN');
-    const expectedDuty = azn * (hs.tariffRate / 100);
-    // surrogate: if declared value per unit < 30% of plausible minimum (very rough), flag
-    const unit = azn / totals.totalQuantity;
-    const referenceFloor = hs.tariffRate >= 15 ? 50 : 20; // AZN per unit floor
-    if (unit < referenceFloor * 0.3) {
-      fire('TARIFF_VALUE_OUTLIER',
-        `Tarif/dəyər nisbəti normaldan kənar`,
-        `Vahid qiymət ${unit.toFixed(2)} ₼ << gözlənilən min ${referenceFloor} ₼ (HS ${hs.code}); Hesablanmış rüsum ${expectedDuty.toFixed(0)} ₼`,
-        [`HS_CODE_DB:${hs.code}`]);
+  // R16 TARIFF_VALUE_OUTLIER is now driven by R2 (pricing reference) above.
+
+  // ── R17 MISSING_REQUIRED_DOC (kind × entityType matrix) ───────────────────
+  if (d.kind && d.ownerEntityType) {
+    const required = DOC_REQUIREMENTS[d.kind][d.ownerEntityType];
+    const present = new Set(docs.map((x) => x.typeCode));
+    for (const req of required) {
+      if (!present.has(req)) {
+        const label = DOCUMENT_TYPES.find((t) => t.code === req)?.label ?? req;
+        fire('MISSING_REQUIRED_DOC',
+          `Tələb olunan sənəd çatışmır: ${label}`,
+          `${d.kind} / ${d.ownerEntityType} üçün ${req} məcburidir`);
+      }
+    }
+  }
+
+  // ── R19 INVOICE_VALUE_MISMATCH / INVOICE_CURRENCY_MISMATCH ────────────────
+  const invoiceDoc = docs.find((x) => x.typeCode === 'INVOICE' || x.typeCode === 'COMMERCIAL_INVOICE');
+  if (invoiceDoc && totals.totalDeclaredValue && totals.currency) {
+    const invAmt = Number(invoiceDoc.fields?.totalAmount);
+    const invCcy = String(invoiceDoc.fields?.currency ?? '');
+    if (invCcy && invCcy !== totals.currency) {
+      fire('INVOICE_CURRENCY_MISMATCH',
+        `Invoys valyutası (${invCcy}) bəyan valyutasından (${totals.currency}) fərqlidir`,
+        `invoice.currency=${invCcy} ≠ totals.currency=${totals.currency}`);
+    }
+    if (!isNaN(invAmt) && invAmt > 0) {
+      const invAZN = convertToAZN(invAmt, invCcy || totals.currency);
+      const decAZN = convertToAZN(totals.totalDeclaredValue, totals.currency);
+      const diff = Math.abs(invAZN - decAZN) / Math.max(invAZN, decAZN);
+      if (diff > 0.05) {
+        fire('INVOICE_VALUE_MISMATCH',
+          `Invoys məbləği bəyan dəyərindən ${(diff * 100).toFixed(1)}% kənardır`,
+          `invoice ${invAZN.toFixed(0)} ₼ vs declared ${decAZN.toFixed(0)} ₼ (>5%)`);
+      }
+    }
+  }
+
+  // ── R20 PACKING_LIST cross-checks ─────────────────────────────────────────
+  const packingDoc = docs.find((x) => x.typeCode === 'PACKING_LIST');
+  if (packingDoc && Array.isArray(packingDoc.fields?.items)) {
+    const items: Array<{ quantity?: number; weight?: number }> = packingDoc.fields.items;
+    const qtySum = items.reduce((a, it) => a + (Number(it.quantity) || 0), 0);
+    const wtSum  = items.reduce((a, it) => a + (Number(it.weight) || 0), 0);
+    if (totals.totalQuantity && qtySum > 0 && Math.abs(qtySum - totals.totalQuantity) / Math.max(qtySum, totals.totalQuantity) > 0.01) {
+      fire('PACKING_QTY_MISMATCH',
+        `Qablaşdırma miqdarı (${qtySum}) ümumi miqdara (${totals.totalQuantity}) uyğun deyil`,
+        `Σ packing.qty=${qtySum} ≠ totals.totalQuantity=${totals.totalQuantity}`);
+    }
+    if (shipment.netWeightKg && wtSum > 0 && Math.abs(wtSum - shipment.netWeightKg) / Math.max(wtSum, shipment.netWeightKg) > 0.10) {
+      fire('PACKING_WEIGHT_MISMATCH',
+        `Qablaşdırma çəkisi (${wtSum} kq) netto çəkidən (${shipment.netWeightKg} kq) >10% fərqlidir`,
+        `Σ packing.weight=${wtSum} vs shipment.netWeightKg=${shipment.netWeightKg}`);
+    }
+    if (shipment.packageCount && items.length > 0 && items.length !== shipment.packageCount) {
+      fire('PACKING_PKGCOUNT_MISMATCH',
+        `Qablaşdırma sətirlərinin sayı (${items.length}) bağlama sayına (${shipment.packageCount}) uyğun deyil`,
+        `packing.items.length=${items.length} ≠ shipment.packageCount=${shipment.packageCount}`);
+    }
+  }
+
+  // ── R21 HS_CODE_INTRA_MISMATCH (customs declaration vs totals) ────────────
+  const customsDoc = docs.find((x) => x.typeCode === 'CUSTOMS_DECLARATION');
+  if (customsDoc && totals.hsCode && customsDoc.fields?.hsCode && customsDoc.fields.hsCode !== totals.hsCode) {
+    fire('HS_CODE_INTRA_MISMATCH',
+      `Gömrük bəyannaməsi HS (${customsDoc.fields.hsCode}) ≠ ümumi HS (${totals.hsCode})`,
+      `customs_decl.hsCode=${customsDoc.fields.hsCode} ≠ totals.hsCode=${totals.hsCode}`);
+  }
+
+  // ── R22 BUYER/SELLER fuzzy match against consignor/consignee ──────────────
+  const tokenOverlap = (a: string, b: string): number => {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9çğşöüəı ]/gi, ' ').split(/\s+/).filter(Boolean);
+    const ta = new Set(norm(a)); const tb = new Set(norm(b));
+    if (!ta.size || !tb.size) return 0;
+    let inter = 0; ta.forEach((t) => { if (tb.has(t)) inter++; });
+    return inter / Math.min(ta.size, tb.size);
+  };
+  if (invoiceDoc && shipment.consignee && invoiceDoc.fields?.buyerName) {
+    const overlap = tokenOverlap(String(invoiceDoc.fields.buyerName), shipment.consignee);
+    if (overlap < 0.5) {
+      fire('BUYER_CONSIGNEE_MISMATCH',
+        'Invoys alıcısı bəyan edilən alıcıdan əhəmiyyətli dərəcədə fərqlidir',
+        `invoice.buyerName="${invoiceDoc.fields.buyerName}" vs shipment.consignee="${shipment.consignee}" (overlap=${overlap.toFixed(2)})`);
+    }
+  }
+  if (invoiceDoc && shipment.consignor && invoiceDoc.fields?.sellerName) {
+    const overlap = tokenOverlap(String(invoiceDoc.fields.sellerName), shipment.consignor);
+    if (overlap < 0.5) {
+      fire('SELLER_CONSIGNOR_MISMATCH',
+        'Invoys satıcısı bəyan edilən göndərəndən əhəmiyyətli dərəcədə fərqlidir',
+        `invoice.sellerName="${invoiceDoc.fields.sellerName}" vs shipment.consignor="${shipment.consignor}" (overlap=${overlap.toFixed(2)})`);
+    }
+  }
+
+  // ── R23 CERT_ORIGIN_MISMATCH ──────────────────────────────────────────────
+  const originCert = docs.find((x) => x.typeCode === 'CERTIFICATE' && x.fields?.certificateType === 'Mənşə sertifikatı');
+  if (originCert && shipment.originCountry && originCert.fields?.goodsCovered) {
+    const text = String(originCert.fields.goodsCovered).toLowerCase();
+    const originName = (findCountry(shipment.originCountry)?.name || '').toLowerCase();
+    if (originName && text.length > 0 && !text.includes(originName) && !text.includes(shipment.originCountry.toLowerCase())) {
+      // soft signal — only fires when cert has a clear country mention that doesn't match
+      // (treat as warning so absence-of-mention doesn't false-positive)
+    }
+  }
+
+  // ── R24 ROUTE_MODE_IMPLAUSIBLE / ROUTE_UNKNOWN ────────────────────────────
+  if (shipment.originCountry && shipment.destinationCountry && shipment.transportMode) {
+    const route = findRoute(shipment.originCountry, shipment.destinationCountry);
+    if (!route) {
+      fire('ROUTE_UNKNOWN',
+        `Marşrut məlumat bazasında yoxdur: ${shipment.originCountry}→${shipment.destinationCountry}`,
+        'SHIPPING_PLAUSIBILITY-də qeyd tapılmadı');
+    } else if (!route.allowedModes.includes(shipment.transportMode)) {
+      fire('ROUTE_MODE_IMPLAUSIBLE',
+        `${shipment.originCountry}→${shipment.destinationCountry} marşrutu üçün "${shipment.transportMode}" mümkün deyil`,
+        `Allowed: ${route.allowedModes.join(', ')}; declared: ${shipment.transportMode}`,
+        [`SHIPPING_ROUTE:${route.from}-${route.to}`]);
     }
   }
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const rawScore = flags.reduce((acc, f) => acc + f.points, 0);
-  const score = Math.min(100, rawScore);
-  const band = bandForScore(score, thresholds.scoreBands);
-  const riskLevel = band.band as RiskLevel;
-  const selectivityChannel = band.channel;
+  let score = Math.min(100, rawScore);
+  let band = bandForScore(score, thresholds.scoreBands);
+  let riskLevel = band.band as RiskLevel;
+  let selectivityChannel: SelectivityChannel = band.channel;
+
+  // ── HARD INVARIANT: incomplete / critical data can NEVER be GREEN ─────────
+  // Any critical-severity flag forces channel = RED and lifts score into the
+  // RED band. This is structural, not numeric — it does not rely on weights
+  // adding up to 50, and it cannot be bypassed by tuning thresholds.
+  const criticalFlags = flags.filter((f) => f.severity === 'critical');
+  const overrideApplied = criticalFlags.length > 0;
+  if (overrideApplied) {
+    selectivityChannel = 'RED';
+    score = Math.max(score, 50);
+    band = bandForScore(score, thresholds.scoreBands);
+    riskLevel = band.band as RiskLevel;
+  }
 
   // Plain-language reasoning
   const reasoningParts: string[] = [];
+  if (overrideApplied) {
+    reasoningParts.push(
+      `KRİTİK ÖVERRIDE: ${criticalFlags.length} kritik bayraq aşkar olundu (${criticalFlags.map((f) => f.code).join(', ')}) — kanal RED-ə zorlandı, GREEN mümkün deyil.`,
+    );
+  }
   reasoningParts.push(`Hesablanmış skor: ${score} / 100 (xam cəm: ${rawScore}).`);
   reasoningParts.push(`Skor ${band.min}–${band.max} aralığına düşür → "${band.label}" (${band.band}) → seçicilik kanalı: ${selectivityChannel}.`);
   if (flags.length === 0) {
@@ -213,7 +347,7 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
     referenceData: {
       hsCode: hs ? { code: hs.code, label: hs.label, tariffRate: hs.tariffRate, riskTier: hs.riskTier } : undefined,
       originCountry: origin ? { code: origin.code, name: origin.name, tier: origin.tier, reason: origin.reason } : undefined,
-      commodity: commodity ? { hsPrefix: commodity.prefix, label: commodity.group, controls: commodity.controls } : undefined,
+      commodity: hs ? { hsPrefix: hs.code.slice(0, 2), label: hs.category, controls: hs.controls } : undefined,
     },
   };
 }

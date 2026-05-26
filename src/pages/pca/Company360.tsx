@@ -268,7 +268,14 @@ export function Company360() {
             return (
               <div className="table-wrap mt-3">
                 <table className="table">
-                  <thead><tr><th>Göstərici</th><th>Bu şirkət</th><th>Sistem ortalaması</th><th>Fərq</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Göstərici</th>
+                      <th className="text-right">Bu şirkət</th>
+                      <th className="text-right">Sistem ortalaması</th>
+                      <th className="text-right">Fərq</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     <tr style={{ cursor: 'default' }}>
                       <td><b>Orta risk skoru</b></td>
@@ -279,10 +286,18 @@ export function Company360() {
                       </td>
                     </tr>
                     <tr style={{ cursor: 'default' }}>
-                      <td><b>Orta bəyan dəyəri</b></td>
+                      <td><b>Orta bəyan dəyəri (AZN)</b></td>
                       <td className="cell-num">{compAvgValue.toFixed(0)}</td>
                       <td className="cell-num">{allAvgValue.toFixed(0)}</td>
-                      <td className="cell-num">{(compAvgValue - allAvgValue).toFixed(0)}</td>
+                      <td className="cell-num" style={{ color: compAvgValue > allAvgValue ? '#dc2626' : '#16a34a' }}>
+                        {compAvgValue > allAvgValue ? '↑' : '↓'} {Math.abs(compAvgValue - allAvgValue).toFixed(0)}
+                      </td>
+                    </tr>
+                    <tr style={{ cursor: 'default' }}>
+                      <td><b>Bəyannamə sayı</b></td>
+                      <td className="cell-num">{companyDecls.length}</td>
+                      <td className="cell-num">{(decls.length / Math.max(1, new Set(decls.map((d) => d.ownerId)).size)).toFixed(1)}</td>
+                      <td className="cell-num text-muted">—</td>
                     </tr>
                   </tbody>
                 </table>
