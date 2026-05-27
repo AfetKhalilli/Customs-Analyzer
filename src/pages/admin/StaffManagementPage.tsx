@@ -270,6 +270,8 @@ function StaffFormModal({ initial, forceRole, forceDepartment, departments, onCl
 }) {
   const methods = useForm<any>({
     resolver: zodResolver(staffSchema as any),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: initial
       ? {
         role: initial.role,
@@ -368,7 +370,7 @@ function DepartmentsAdmin({ departments, users, onAdd, onRename, onDelete }: {
           <table className="table">
             <thead>
               <tr>
-                <th>Şöbə</th><th>Rəis</th><th>Müfəttişlər</th>
+                <th>Şöbə</th><th>Rəis</th><th className="cell-num">Müfəttişlər</th>
                 <th className="cell-actions">Əməllər</th>
               </tr>
             </thead>

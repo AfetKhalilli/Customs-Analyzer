@@ -9,6 +9,7 @@ import { useCurrentUser, useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { useToastStore } from '../../store/toastStore';
 import { Avatar, ConfirmDialog } from '../ui/Primitives';
+import { LogoMark } from '../ui/LogoMark';
 import { relativeTime, cn } from '../../lib/utils';
 import type { Role } from '../../types';
 
@@ -109,10 +110,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className={cn('sidebar', role === 'pca' && 'pca-mode')}>
         <div className="brand">
-          <div className="brand-mark">CA</div>
+          <div className="brand-mark"><LogoMark size={42} /></div>
           <div className="brand-text">
             <strong>Customs Analyzer</strong>
-            <small>{role === 'pca' ? 'PCA Workspace' : 'Gömrük sistemi'}</small>
+            <small>{role === 'pca' ? 'PCA Workspace' : 'Gömrük Sistemi'}</small>
           </div>
         </div>
         <nav>
@@ -126,6 +127,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </React.Fragment>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={handleLogout}>
+            <LogOut size={16} /> Çıxış
+          </button>
+          <div className="copyright">
+            © {new Date().getFullYear()} Customs Analyzer<br />All Rights Reserved
+          </div>
+        </div>
       </aside>
 
       <header className="header">

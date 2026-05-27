@@ -90,7 +90,7 @@ export function FindingsPage() {
                       <th>Kateqoriya</th>
                       <th>Şiddət</th>
                       <th>Status</th>
-                      <th>Rüsum təsiri</th>
+                      <th className="cell-num">Rüsum təsiri</th>
                       <th>Tarix</th>
                     </tr>
                   </thead>
@@ -127,6 +127,8 @@ export function FindingsPage() {
 
 function FindingFormModal({ open, onClose, cases, onSave }: { open: boolean; onClose: () => void; cases: PCACase[]; onSave: (d: any) => void }) {
   const methods = useForm({
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       caseId: '', title: '', description: '',
       category: 'Aşağı qiymət' as FindingCategory,

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { companyStep1Schema, companyStep2Schema, companyStep3Schema } from '../../lib/schemas';
 import { TextField, SelectField, DateField, PasswordField, CheckboxField } from '../../components/forms/Fields';
+import { LogoMark } from '../../components/ui/LogoMark';
 import { CITIES, LEGAL_FORMS, ACTIVITY_FIELDS, POSITIONS } from '../../lib/constants';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from '../../store/toastStore';
@@ -19,6 +20,8 @@ export function CompanyRegisterPage() {
 
   const m1 = useForm({
     resolver: zodResolver(companyStep1Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       companyName: '', companyShortName: '', tin: '', registrationNumber: '',
       legalForm: 'MMC' as const, registrationDate: '', activityField: '',
@@ -28,6 +31,8 @@ export function CompanyRegisterPage() {
   });
   const m2 = useForm({
     resolver: zodResolver(companyStep2Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       responsibleFirstName: '', responsibleLastName: '', responsibleFatherName: '',
       responsiblePosition: '', responsibleFin: '',
@@ -36,6 +41,8 @@ export function CompanyRegisterPage() {
   });
   const m3 = useForm({
     resolver: zodResolver(companyStep3Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       companyEmail: '', companyPhone: '+994 ', website: '',
       password: '', passwordConfirm: '',
@@ -81,9 +88,23 @@ export function CompanyRegisterPage() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card wide">
-        <h1>Hüquqi Şəxs Qeydiyyatı</h1>
-        <p className="auth-sub">Addım {step} / 3</p>
+      <div className="auth-hero">
+        <div className="hero-brand">
+          <LogoMark size={56} />
+          <div className="hb-title">Customs Analyzer</div>
+        </div>
+        <div className="hero-body">
+          <h2>Hüquqi şəxs hesabı yaradın</h2>
+          <p>
+            Şirkətinizi və məsul şəxsi qeydiyyatdan keçirin. Hesab aktivləşdikdən sonra şirkət adından
+            bəyannamələri təqdim edə və risk analizindən istifadə edə bilərsiniz.
+          </p>
+        </div>
+      </div>
+      <div className="auth-form-wrap">
+        <div className="auth-card wide">
+          <h1>Hüquqi Şəxs Qeydiyyatı</h1>
+          <p className="auth-sub">Addım {step} / 3</p>
         <div className="stepper">
           <div className={`step ${step > 1 ? 'done' : step === 1 ? 'active' : ''}`}><span className="num">1</span> Şirkət</div>
           <div className={`step ${step > 2 ? 'done' : step === 2 ? 'active' : ''}`}><span className="num">2</span> Məsul Şəxs</div>
@@ -175,8 +196,9 @@ export function CompanyRegisterPage() {
           </FormProvider>
         )}
 
-        <div className="auth-footer">
-          Artıq hesabınız var? <Link to="/login">Daxil olun</Link>
+          <div className="auth-footer">
+            Artıq hesabınız var? <Link to="/login">Daxil olun</Link>
+          </div>
         </div>
       </div>
     </div>

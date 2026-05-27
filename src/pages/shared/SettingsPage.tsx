@@ -10,6 +10,8 @@ export function SettingsPage() {
   const changePassword = useAuthStore((s) => s.changePassword);
   const methods = useForm({
     resolver: zodResolver(changePasswordSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: { currentPassword: '', newPassword: '', newPasswordConfirm: '' },
   });
 

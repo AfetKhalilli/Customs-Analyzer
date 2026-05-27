@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { individualStep1Schema, individualStep2Schema } from '../../lib/schemas';
 import { TextField, SelectField, DateField, PasswordField, CheckboxField } from '../../components/forms/Fields';
+import { LogoMark } from '../../components/ui/LogoMark';
 import { CITIES, COUNTRIES } from '../../lib/constants';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from '../../store/toastStore';
@@ -18,6 +19,8 @@ export function IndividualRegisterPage() {
 
   const m1 = useForm({
     resolver: zodResolver(individualStep1Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       firstName: '', lastName: '', fatherName: '', fin: '',
       dateOfBirth: '', gender: 'Kişi' as 'Kişi' | 'Qadın',
@@ -26,6 +29,8 @@ export function IndividualRegisterPage() {
   });
   const m2 = useForm({
     resolver: zodResolver(individualStep2Schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       phone: '+994 ', email: '', addressCity: '', addressLine: '', postalCode: '',
       password: '', passwordConfirm: '',
@@ -57,9 +62,23 @@ export function IndividualRegisterPage() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card wide">
-        <h1>Fiziki Şəxs Qeydiyyatı</h1>
-        <p className="auth-sub">Addım {step} / 2</p>
+      <div className="auth-hero">
+        <div className="hero-brand">
+          <LogoMark size={56} />
+          <div className="hb-title">Customs Analyzer</div>
+        </div>
+        <div className="hero-body">
+          <h2>Fiziki şəxs hesabı yaradın</h2>
+          <p>
+            Şəxsi məlumatlarınızı təhlükəsiz şəkildə daxil edin. Hesab yaratdıqdan sonra bəyannamələri
+            təqdim edə və AI əsaslı risk analizindən faydalana biləcəksiniz.
+          </p>
+        </div>
+      </div>
+      <div className="auth-form-wrap">
+        <div className="auth-card wide">
+          <h1>Fiziki Şəxs Qeydiyyatı</h1>
+          <p className="auth-sub">Addım {step} / 2</p>
         <div className="stepper">
           <div className={`step ${step === 1 ? 'active' : 'done'}`}><span className="num">1</span> Şəxsi Məlumatlar</div>
           <div className={`step ${step === 2 ? 'active' : ''}`}><span className="num">2</span> Əlaqə və Şifrə</div>
@@ -115,8 +134,9 @@ export function IndividualRegisterPage() {
             </form>
           </FormProvider>
         )}
-        <div className="auth-footer">
-          Artıq hesabınız var? <Link to="/login">Daxil olun</Link>
+          <div className="auth-footer">
+            Artıq hesabınız var? <Link to="/login">Daxil olun</Link>
+          </div>
         </div>
       </div>
     </div>

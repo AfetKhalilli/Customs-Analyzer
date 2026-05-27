@@ -56,9 +56,9 @@ export function WatchlistPage() {
                 <thead>
                   <tr>
                     <th>Şirkət</th>
-                    <th>İşlər</th>
-                    <th>Ort. risk</th>
-                    <th>Rüsum risk</th>
+                    <th className="cell-num">İşlər</th>
+                    <th className="cell-num">Ort. risk</th>
+                    <th className="cell-num">Rüsum risk</th>
                     <th></th>
                   </tr>
                 </thead>

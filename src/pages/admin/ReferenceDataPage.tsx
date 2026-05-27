@@ -2,9 +2,9 @@ import React from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { Tabs } from '../../components/ui/Primitives';
 import { toast } from '../../store/toastStore';
-import {
-  HS_CODE_DB, COUNTRY_RISK, COMMODITY_CLASSIFICATIONS, BROKER_PROFILES, RISK_RULES,
-} from '../../lib/referenceData';
+import { COUNTRY_RISK, BROKER_PROFILES, RISK_RULES } from '../../lib/referenceData';
+import { HS_CODES, HS_CATEGORIES } from '../../lib/hsCodes';
+import { CATEGORY_PRICE_BANDS } from '../../lib/pricingReference';
 import { Save } from 'lucide-react';
 import type { AIScoreBand } from '../../types';
 
@@ -28,9 +28,9 @@ export function ReferenceDataPage() {
         items={[
           { value: 'rules',      label: 'Risk qaydaları',     count: RISK_RULES.length },
           { value: 'thresholds', label: 'Skor hədləri' },
-          { value: 'hs',         label: 'HS kodları',         count: HS_CODE_DB.length },
+          { value: 'hs',         label: 'HS kodları',         count: HS_CODES.length },
           { value: 'countries',  label: 'Ölkə riski',         count: COUNTRY_RISK.length },
-          { value: 'commodity',  label: 'Mal kateqoriyaları', count: COMMODITY_CLASSIFICATIONS.length },
+          { value: 'pricing',    label: 'Qiymət hədləri',     count: CATEGORY_PRICE_BANDS.length },
           { value: 'brokers',    label: 'Brokerlər',          count: BROKER_PROFILES.length },
         ]}
       />
@@ -40,7 +40,7 @@ export function ReferenceDataPage() {
           <div className="card-body" style={{ padding: 0 }}>
             <table className="table">
               <thead>
-                <tr><th>ID</th><th>Kod</th><th>Ad</th><th>Kateqoriya</th><th>Çəki</th><th>Şiddət</th><th>Aktiv</th></tr>
+                <tr><th>ID</th><th>Kod</th><th>Ad</th><th>Kateqoriya</th><th className="cell-num">Çəki</th><th>Şiddət</th><th>Aktiv</th></tr>
               </thead>
               <tbody>
                 {RISK_RULES.map((r) => (
@@ -76,18 +76,29 @@ export function ReferenceDataPage() {
       {tab === 'hs' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>HS Kodu</th><th>Mal</th><th>Qrup</th><th>Tariff %</th><th>VAT %</th><th>Risk</th><th>Nəzarət</th><th>Vahid</th></tr></thead>
+            <thead>
+              <tr>
+                <th>HS Kodu</th><th>Mal</th><th>Kateqoriya</th>
+                <th className="cell-num">Tariff %</th>
+                <th className="cell-num">VAT %</th>
+                <th>Risk</th>
+                <th>Vahid</th>
+                <th className="cell-num">Min ₼</th>
+                <th className="cell-num">Maks ₼</th>
+              </tr>
+            </thead>
             <tbody>
-              {HS_CODE_DB.map((h) => (
+              {HS_CODES.map((h) => (
                 <tr key={h.code} style={{ cursor: 'default' }}>
                   <td className="mono">{h.code}</td>
                   <td><b>{h.label}</b></td>
-                  <td>{h.commodityGroup}</td>
+                  <td>{h.category}</td>
                   <td className="cell-num">{h.tariffRate}%</td>
                   <td className="cell-num">{h.vatRate}%</td>
                   <td>{h.riskTier}</td>
-                  <td>{h.controls.join(', ') || '—'}</td>
                   <td>{h.unit}</td>
+                  <td className="cell-num">{h.pricing.expectedMinAZN}</td>
+                  <td className="cell-num">{h.pricing.expectedMaxAZN}</td>
                 </tr>
               ))}
             </tbody>
@@ -114,27 +125,44 @@ export function ReferenceDataPage() {
         </div>
       )}
 
-      {tab === 'commodity' && (
+      {tab === 'pricing' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>HS prefiksi</th><th>Qrup</th><th>Nəzarət</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Kateqoriya</th>
+                <th>Vahid</th>
+                <th className="cell-num">Min ₼</th>
+                <th className="cell-num">Maks ₼</th>
+                <th className="cell-num">Şübhəli aşağı</th>
+                <th className="cell-num">Şübhəli yüksək</th>
+                <th className="cell-num">Risk əmsalı</th>
+              </tr>
+            </thead>
             <tbody>
-              {COMMODITY_CLASSIFICATIONS.map((c) => (
-                <tr key={c.prefix} style={{ cursor: 'default' }}>
-                  <td className="mono">{c.prefix}</td>
-                  <td><b>{c.group}</b></td>
-                  <td>{c.controls.join(', ') || '—'}</td>
+              {CATEGORY_PRICE_BANDS.map((b) => (
+                <tr key={b.category} style={{ cursor: 'default' }}>
+                  <td><b>{b.category}</b></td>
+                  <td>{b.unit}</td>
+                  <td className="cell-num">{b.expectedMinAZN}</td>
+                  <td className="cell-num">{b.expectedMaxAZN}</td>
+                  <td className="cell-num">{b.suspiciousLowAZN}</td>
+                  <td className="cell-num">{b.suspiciousHighAZN}</td>
+                  <td className="cell-num">{b.riskCoefficient.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div className="card-footer text-muted text-sm">
+            Cəmi kateqoriya: {HS_CATEGORIES.length} · Qiymət bandı: {CATEGORY_PRICE_BANDS.length}
+          </div>
         </div>
       )}
 
       {tab === 'brokers' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>ID</th><th>Ad</th><th>Lisenziya</th><th>Qeydiyyat</th><th>Reytinq</th><th>Aşkarlanmış pozuntular</th></tr></thead>
+            <thead><tr><th>ID</th><th>Ad</th><th>Lisenziya</th><th>Qeydiyyat</th><th>Reytinq</th><th className="cell-num">Aşkarlanmış pozuntular</th></tr></thead>
             <tbody>
               {BROKER_PROFILES.map((b) => (
                 <tr key={b.id} style={{ cursor: 'default' }}>

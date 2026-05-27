@@ -38,11 +38,11 @@ export function DepartmentsPage() {
             <tr>
               <th>Şöbə</th>
               <th>Rəis</th>
-              <th>Müfəttişlər</th>
-              <th>Ümumi</th>
-              <th>Aktiv</th>
-              <th>Tamamlanmış</th>
-              <th>Orta risk</th>
+              <th className="cell-num">Müfəttişlər</th>
+              <th className="cell-num">Ümumi</th>
+              <th className="cell-num">Aktiv</th>
+              <th className="cell-num">Tamamlanmış</th>
+              <th className="cell-num">Orta risk</th>
             </tr>
           </thead>
           <tbody>

@@ -154,16 +154,8 @@ export interface AIResult {
 }
 
 // ============== Reference Data ==============
-export interface HsCodeEntry {
-  code: string;          // NNNN.NN
-  label: string;
-  commodityGroup: string;
-  tariffRate: number;    // duty rate in % e.g. 5, 15
-  vatRate: number;       // typically 18
-  riskTier: 'low' | 'medium' | 'high';
-  controls: string[];    // e.g. ["CITES", "Veterinar nəzarəti"]
-  unit: string;          // typical unit of measure
-}
+// HsCodeRecord lives in src/lib/hsCodes.ts (richer dataset; supersedes the
+// previous HsCodeEntry type that lived here).
 
 export interface CountryRiskEntry {
   code: string;

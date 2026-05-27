@@ -292,7 +292,11 @@ function Field({ label, value, note }: { label: string; value: React.ReactNode; 
 }
 
 function EditModal({ title, defaults, onSave, onClose, children }: { title: string; defaults: any; onSave: (v: any) => void; onClose: () => void; children: () => React.ReactNode }) {
-  const methods = useForm({ defaultValues: defaults });
+  const methods = useForm({
+    defaultValues: defaults,
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+  });
   const submit = methods.handleSubmit((v) => onSave(v));
   return (
     <Modal open={true} onClose={onClose} title={title}

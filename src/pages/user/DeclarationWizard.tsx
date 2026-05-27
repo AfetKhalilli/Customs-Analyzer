@@ -462,10 +462,56 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
   onSave: (d: AttachedDocument) => void;
 }) {
   const docMeta = DOCUMENT_TYPES.find((d) => d.code === typeCode)!;
-  const methods = useForm({ defaultValues: defaultFieldsFor(typeCode) });
+  const methods = useForm({
+    defaultValues: defaultFieldsFor(typeCode),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+  });
   const file = methods.watch('_file');
 
+  // Friendly labels for the inline error message; falls back to the raw field name.
+  const FIELD_LABELS: Record<string, string> = {
+    invoiceNumber: 'Hesab-faktura №',
+    invoiceDate: 'Hesab-faktura tarixi',
+    sellerName: 'Satıcının adı',
+    sellerAddress: 'Satıcının ünvanı',
+    buyerName: 'Alıcının adı',
+    totalAmount: 'Ümumi məbləğ',
+    currency: 'Valyuta',
+    contractNumber: 'Müqavilə №',
+    contractDate: 'Müqavilə tarixi',
+    contractType: 'Müqavilə növü',
+    counterpartyName: 'Qarşı tərəfin adı',
+    counterpartyAddress: 'Qarşı tərəfin ünvanı',
+    paymentTerms: 'Ödəniş şərtləri',
+    declarationNumber: 'Bəyannamə №',
+    procedureCode: 'Prosedur kodu',
+    hsCode: 'HS Kodu',
+    goodsDescription: 'Malların təsviri',
+    packingListNumber: 'Qablaşdırma siyahısı №',
+    packingDate: 'Tarix',
+    receiptNumber: 'Qəbz №',
+    paymentDate: 'Ödəniş tarixi',
+    amount: 'Məbləğ',
+    bankName: 'Bank adı',
+    payerName: 'Ödəyicinin adı',
+    shippingDocType: 'Daşıma sənədi növü',
+    shippingDocNumber: 'Sənəd №',
+    carrierName: 'Daşıyıcının adı',
+    loadingDate: 'Yükləmə tarixi',
+    certificateType: 'Sertifikat növü',
+    certificateNumber: 'Sertifikat №',
+    issueDate: 'Verilmə tarixi',
+    issuingAuthority: 'Verən orqan',
+    incoterms: 'Incoterms',
+    incotermsLocation: 'Incoterms yeri',
+    packageType: 'Bağlama növü',
+  };
+
   const onSubmit = methods.handleSubmit((values) => {
+    // Always reclear before re-running validation so stale messages can't persist.
+    methods.clearErrors();
+
     if (!values._file) {
       methods.setError('_file', { type: 'manual', message: 'Fayl yükləyin' });
       return;
@@ -484,11 +530,26 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
       isComplete: false,
       visibleTo,
     };
-    // HARD GATE: each document must be field-complete and have a valid file
-    // before it can be attached to the declaration.
+    // HARD GATE — each document must pass validation before it can be attached.
     const dv = validateDocumentFields(candidate);
     if (!dv.ok) {
-      methods.setError('_file', { type: 'manual', message: dv.errors[0].message });
+      // Route each error to its own field so the message renders beneath the
+      // empty input, not piled on the file picker. Files / unknowns fall back
+      // to the file field for visibility.
+      for (const e of dv.errors) {
+        const segs = (e.field ?? '').split('.');
+        const last = segs[segs.length - 1];
+        const target = last && last !== 'file' && last in values ? last : '_file';
+        const friendly = `${FIELD_LABELS[last] ?? last} — boşdur və ya etibarsızdır`;
+        methods.setError(target as any, { type: 'manual', message: target === '_file' ? e.message : friendly });
+      }
+      // focus the first invalid field so the user lands where the fix is needed
+      const first = dv.errors[0];
+      const firstName = (first.field ?? '').split('.').pop();
+      if (firstName && firstName in values) {
+        // setFocus is safe for registered fields
+        try { methods.setFocus(firstName as any); } catch { /* ignore */ }
+      }
       return;
     }
     candidate.isComplete = true;

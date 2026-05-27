@@ -153,8 +153,8 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
   if (totals.hsCode && canonicalizeHs(totals.hsCode) && !hs) {
     fire('HS_NOT_IN_DB',
       `HS kodu reyestrdə yoxdur: ${totals.hsCode}`,
-      'HS_CODE_DB-də bu prefiks üzrə qeyd tapılmadı — manual yoxlama tələb olunur',
-      ['HS_CODE_DB']);
+      'HS_CATALOG-də bu prefiks üzrə qeyd tapılmadı — manual yoxlama tələb olunur',
+      ['HS_CATALOG']);
   }
 
   // ── R13 HIGH_TARIFF_HS ────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
     fire('HIGH_TARIFF_HS',
       `Yüksək rüsumlu HS kodu (${hs.tariffRate}%): ${hs.label}`,
       `HS ${hs.code} üçün tariff ${hs.tariffRate}% — orta tariff 5-15%`,
-      [`HS_CODE_DB:${hs.code}`]);
+      [`HS_CATALOG:${hs.code}`]);
   }
 
   // ── R14 HIGH_RISK_COMMODITY ───────────────────────────────────────────────
@@ -170,7 +170,7 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
     fire('HIGH_RISK_COMMODITY',
       `Yüksək riskli mal kateqoriyası: ${hs.label}`,
       `Nəzarət tələbləri: ${hs.controls.join(', ') || '—'}`,
-      [`HS_CODE_DB:${hs.code}`]);
+      [`HS_CATALOG:${hs.code}`]);
   }
 
   // R16 TARIFF_VALUE_OUTLIER is now driven by R2 (pricing reference) above.

@@ -1,33 +1,9 @@
 import type {
-  HsCodeEntry, CountryRiskEntry, BrokerProfile, RiskRule, ThresholdSet, AIScoreBand, Sector,
+  CountryRiskEntry, BrokerProfile, RiskRule, ThresholdSet, AIScoreBand, Sector,
 } from '../types';
 
-// ============================================================================
-// HS code database — Azerbaijani customs (subset, covers seed declarations)
-// ============================================================================
-export const HS_CODE_DB: HsCodeEntry[] = [
-  { code: '0902.30', label: 'Qara çay, qablaşdırılmış',          commodityGroup: 'Qida & içkilər',     tariffRate: 15, vatRate: 18, riskTier: 'medium', controls: ['Sanitar nəzarət'],     unit: 'kq' },
-  { code: '1905.31', label: 'Şirin biskvit',                      commodityGroup: 'Qida & içkilər',     tariffRate: 15, vatRate: 18, riskTier: 'low',    controls: ['Sanitar nəzarət'],     unit: 'kq' },
-  { code: '3304.99', label: 'Kosmetika məhsulları, digər',        commodityGroup: 'Kosmetika',          tariffRate: 15, vatRate: 18, riskTier: 'medium', controls: ['Keyfiyyət sertifikatı'], unit: 'ədəd' },
-  { code: '3402.20', label: 'Yuyucu vasitələr, pərakəndə',        commodityGroup: 'Kimya məhsulları',   tariffRate: 5,  vatRate: 18, riskTier: 'medium', controls: ['Təhlükəsizlik sənədi'], unit: 'litr' },
-  { code: '3004.90', label: 'Dərman vasitələri, digər',           commodityGroup: 'Səhiyyə',            tariffRate: 0,  vatRate: 0,  riskTier: 'high',   controls: ['Səhiyyə Nazirliyi icazəsi'], unit: 'ədəd' },
-  { code: '5208.21', label: 'Pambıq parça, ağardılmış',           commodityGroup: 'Tekstil',            tariffRate: 5,  vatRate: 18, riskTier: 'low',    controls: [],                       unit: 'kq' },
-  { code: '6810.11', label: 'Beton blokları, tikinti',            commodityGroup: 'Tikinti materialları', tariffRate: 15, vatRate: 18, riskTier: 'low',  controls: [],                       unit: 'ədəd' },
-  { code: '8479.89', label: 'Maşınlar, digər funksional',         commodityGroup: 'Maşın & avadanlıq',  tariffRate: 5,  vatRate: 18, riskTier: 'medium', controls: [],                       unit: 'ədəd' },
-  { code: '8517.12', label: 'Mobil telefonlar',                   commodityGroup: 'Texnologiya',        tariffRate: 0,  vatRate: 18, riskTier: 'high',   controls: ['IMEI qeydiyyatı'],     unit: 'ədəd' },
-  { code: '8528.72', label: 'Televiziya alıcıları',               commodityGroup: 'Texnologiya',        tariffRate: 15, vatRate: 18, riskTier: 'medium', controls: [],                       unit: 'ədəd' },
-  { code: '8703.23', label: 'Minik avtomobilləri (1500–3000 sm³)',commodityGroup: 'Avtomobil',          tariffRate: 30, vatRate: 18, riskTier: 'high',   controls: ['Aksiz', 'Ekoloji standart'], unit: 'ədəd' },
-  { code: '9403.30', label: 'Ofis mebeli, ağacdan',               commodityGroup: 'Mebel',              tariffRate: 15, vatRate: 18, riskTier: 'low',    controls: [],                       unit: 'ədəd' },
-  // padding for variety
-  { code: '0207.14', label: 'Toyuq əti, dondurulmuş',             commodityGroup: 'Qida & içkilər',     tariffRate: 15, vatRate: 18, riskTier: 'medium', controls: ['Veterinar sertifikatı'], unit: 'kq' },
-  { code: '2710.19', label: 'Neft məhsulları, digər',             commodityGroup: 'Yanacaq',            tariffRate: 5,  vatRate: 18, riskTier: 'high',   controls: ['Aksiz'],                unit: 'litr' },
-  { code: '7308.30', label: 'Polad konstruksiyalar',              commodityGroup: 'Tikinti materialları', tariffRate: 15, vatRate: 18, riskTier: 'medium', controls: [],                     unit: 'kq' },
-];
-
-export function findHsEntry(code?: string): HsCodeEntry | undefined {
-  if (!code) return undefined;
-  return HS_CODE_DB.find((h) => h.code === code) ?? HS_CODE_DB.find((h) => h.code.startsWith(code.slice(0, 4)));
-}
+// HS catalog moved to src/lib/hsCodes.ts (HS_CODES, lookupHs, searchHs).
+// Pricing reference moved to src/lib/pricingReference.ts.
 
 // ============================================================================
 // Country risk tiers — based on sanctions, contraband history, FATF
@@ -59,30 +35,8 @@ export function findCountry(code?: string): CountryRiskEntry | undefined {
   return COUNTRY_RISK.find((c) => c.code === code);
 }
 
-// ============================================================================
-// Commodity classifications — coarse buckets used for grouping & analytics
-// ============================================================================
-export const COMMODITY_CLASSIFICATIONS: { prefix: string; group: string; controls: string[] }[] = [
-  { prefix: '01', group: 'Canlı heyvanlar',          controls: ['Veterinar nəzarəti'] },
-  { prefix: '02', group: 'Ət və ət məhsulları',      controls: ['Veterinar sertifikatı', 'Sanitar nəzarət'] },
-  { prefix: '09', group: 'Çay, kofe, ədviyyatlar',   controls: ['Sanitar nəzarət'] },
-  { prefix: '19', group: 'Un məmulatları',           controls: ['Sanitar nəzarət'] },
-  { prefix: '27', group: 'Mineral yanacaqlar',       controls: ['Aksiz'] },
-  { prefix: '30', group: 'Əczaçılıq məhsulları',     controls: ['Səhiyyə Nazirliyi icazəsi'] },
-  { prefix: '33', group: 'Kosmetika, ətriyyat',      controls: ['Keyfiyyət sertifikatı'] },
-  { prefix: '34', group: 'Yuyucu və yağlama vasitələri', controls: [] },
-  { prefix: '52', group: 'Pambıq və pambıq parça',   controls: [] },
-  { prefix: '68', group: 'Tikinti daş və beton',     controls: [] },
-  { prefix: '73', group: 'Polad məmulatları',        controls: [] },
-  { prefix: '84', group: 'Maşın və avadanlıq',       controls: [] },
-  { prefix: '85', group: 'Elektrik və elektronika',  controls: ['IMEI qeydiyyatı (telefonlar üçün)'] },
-  { prefix: '87', group: 'Nəqliyyat vasitələri',     controls: ['Aksiz', 'Ekoloji standart'] },
-  { prefix: '94', group: 'Mebel',                    controls: [] },
-];
-export function classifyHs(code?: string) {
-  if (!code) return undefined;
-  return COMMODITY_CLASSIFICATIONS.find((c) => code.startsWith(c.prefix));
-}
+// Commodity classifications removed — categorisation now lives on each
+// HsCodeRecord in src/lib/hsCodes.ts (HsCodeRecord.category).
 
 // ============================================================================
 // Broker / company profile registry — used in PCA cross-check

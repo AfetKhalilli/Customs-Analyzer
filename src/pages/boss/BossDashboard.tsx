@@ -13,7 +13,9 @@ export function BossDashboard() {
   const logs = useDataStore((s) => s.logs);
   const departments = useDataStore((s) => s.departments);
 
-  const k = {
+  // Aggregates are recomputed only when the declaration set changes — cheaper
+  // than running these scans on every header/notification re-render.
+  const k = React.useMemo(() => ({
     systemTotal: declarations.length,
     activeAll: declarations.filter((d) => !['Tamamlanmış', 'Rədd'].includes(d.status)).length,
     completedAll: declarations.filter((d) => d.status === 'Tamamlanmış' || d.status === 'Təsdiq').length,
@@ -23,44 +25,57 @@ export function BossDashboard() {
       const hours = (Date.now() - new Date(d.uploadedAt).getTime()) / 3600000;
       return hours > 48;
     }).length,
-  };
+  }), [declarations]);
 
   // Line chart: declarations per day, last 30 days
-  const days = 30;
-  const lineData: Record<string, any>[] = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const row: any = { date: `${d.getDate()}.${d.getMonth() + 1}` };
-    for (const s of ALL_STATUSES) row[s] = 0;
+  const lineData = React.useMemo(() => {
+    const days = 30;
+    const out: Record<string, any>[] = [];
+    const now = new Date();
+    // Pre-bucket by ISO date for O(N) instead of O(N*days)
+    const byDate = new Map<string, Record<string, number>>();
     for (const decl of declarations) {
-      if (decl.uploadedAt.slice(0, 10) === key) {
-        row[decl.status] = (row[decl.status] || 0) + 1;
-      }
+      const key = decl.uploadedAt.slice(0, 10);
+      const row = byDate.get(key) ?? Object.fromEntries(ALL_STATUSES.map((s) => [s, 0]));
+      row[decl.status] = (row[decl.status] || 0) + 1;
+      byDate.set(key, row);
     }
-    lineData.push(row);
-  }
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const row: any = { date: `${d.getDate()}.${d.getMonth() + 1}` };
+      const bucket = byDate.get(key);
+      for (const s of ALL_STATUSES) row[s] = bucket?.[s] ?? 0;
+      out.push(row);
+    }
+    return out;
+  }, [declarations]);
 
-  // Department heatmap
-  const heatmap = departments.map((dept) => {
-    const row: any = { department: dept };
-    for (const s of ALL_STATUSES) {
-      row[s] = declarations.filter((d) => d.department === dept && d.status === s).length;
+  // Department heatmap — single pass over declarations
+  const heatmap = React.useMemo(() => {
+    const idx = new Map<string, Record<string, number>>();
+    for (const dept of departments) {
+      idx.set(dept, Object.fromEntries(ALL_STATUSES.map((s) => [s, 0])));
     }
-    return row;
-  });
+    for (const decl of declarations) {
+      const row = idx.get(decl.department);
+      if (row) row[decl.status] = (row[decl.status] || 0) + 1;
+    }
+    return departments.map((dept) => ({ department: dept, ...(idx.get(dept) as any) }));
+  }, [departments, declarations]);
 
   // Top AI flag codes
-  const flagCounts: Record<string, number> = {};
-  for (const d of declarations) {
-    for (const f of d.ai.flags) flagCounts[f.code] = (flagCounts[f.code] || 0) + 1;
-  }
-  const topFlags = Object.entries(flagCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([code, count]) => ({ code, count }));
+  const topFlags = React.useMemo(() => {
+    const flagCounts: Record<string, number> = {};
+    for (const d of declarations) {
+      for (const f of d.ai.flags) flagCounts[f.code] = (flagCounts[f.code] || 0) + 1;
+    }
+    return Object.entries(flagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([code, count]) => ({ code, count }));
+  }, [declarations]);
 
   return (
     <div>
@@ -127,7 +142,7 @@ export function BossDashboard() {
               <thead>
                 <tr>
                   <th>Şöbə</th>
-                  {ALL_STATUSES.map((s) => <th key={s} style={{ fontSize: 10 }}>{s.slice(0, 8)}</th>)}
+                  {ALL_STATUSES.map((s) => <th key={s} className="cell-num" style={{ fontSize: 10 }}>{s.slice(0, 8)}</th>)}
                 </tr>
               </thead>
               <tbody>

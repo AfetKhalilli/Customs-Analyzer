@@ -65,10 +65,10 @@ export function PCACompaniesPage() {
                     <tr>
                       <th></th>
                       <th>Şirkət</th>
-                      <th>İşlərin sayı</th>
+                      <th className="cell-num">İşlərin sayı</th>
                       <th>Ən yüksək risk</th>
-                      <th>Ort. skor</th>
-                      <th>Ümumi rüsum risk</th>
+                      <th className="cell-num">Ort. skor</th>
+                      <th className="cell-num">Ümumi rüsum risk</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -125,7 +125,7 @@ export function Company360() {
       {tab === 'declarations' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>ID</th><th>Növ</th><th>Şöbə</th><th>Tarix</th><th>Status</th><th>Risk</th><th>Dəyər</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Növ</th><th>Şöbə</th><th>Tarix</th><th>Status</th><th>Risk</th><th className="cell-num">Dəyər</th><th></th></tr></thead>
             <tbody>
               {companyDecls.map((d) => (
                 <tr key={d.id} onClick={() => handleOpenDecl(d.id)}>
@@ -191,7 +191,7 @@ export function Company360() {
       {tab === 'inspectors' && (
         <div className="card no-pad">
           <table className="table">
-            <thead><tr><th>Müfəttiş</th><th>Şöbə</th><th>İşlər</th><th>Ort. Risk</th></tr></thead>
+            <thead><tr><th>Müfəttiş</th><th>Şöbə</th><th className="cell-num">İşlər</th><th className="cell-num">Ort. Risk</th></tr></thead>
             <tbody>
               {inspectorsInvolved.map((insId) => {
                 const ins = users.find((u) => u.id === insId);
@@ -238,7 +238,7 @@ export function Company360() {
       {tab === 'findings' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>Başlıq</th><th>Kateqoriya</th><th>Şiddət</th><th>Status</th><th>Rüsum təsiri</th><th>Tarix</th></tr></thead>
+            <thead><tr><th>Başlıq</th><th>Kateqoriya</th><th>Şiddət</th><th>Status</th><th className="cell-num">Rüsum təsiri</th><th>Tarix</th></tr></thead>
             <tbody>
               {companyFindings.map((f) => (
                 <tr key={f.id} style={{ cursor: 'default' }}>
@@ -271,9 +271,9 @@ export function Company360() {
                   <thead>
                     <tr>
                       <th>Göstərici</th>
-                      <th className="text-right">Bu şirkət</th>
-                      <th className="text-right">Sistem ortalaması</th>
-                      <th className="text-right">Fərq</th>
+                      <th className="cell-num">Bu şirkət</th>
+                      <th className="cell-num">Sistem ortalaması</th>
+                      <th className="cell-num">Fərq</th>
                     </tr>
                   </thead>
                   <tbody>

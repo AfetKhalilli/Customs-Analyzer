@@ -33,40 +33,44 @@ export function PCADashboard() {
     closed: cases.filter((c) => c.status === 'Closed').length,
   };
 
-  const riskDistribution: Record<PCARiskBand, number> = {
-    'Aşağı': cases.filter((c) => c.riskBand === 'Aşağı').length,
-    'Orta':  cases.filter((c) => c.riskBand === 'Orta').length,
-    'Yüksək':cases.filter((c) => c.riskBand === 'Yüksək').length,
-    'Kritik':cases.filter((c) => c.riskBand === 'Kritik').length,
-  };
+  const riskDistribution = React.useMemo<Record<PCARiskBand, number>>(() => {
+    const dist: Record<PCARiskBand, number> = { 'Aşağı': 0, 'Orta': 0, 'Yüksək': 0, 'Kritik': 0 };
+    for (const c of cases) dist[c.riskBand]++;
+    return dist;
+  }, [cases]);
   const maxRisk = Math.max(1, ...Object.values(riskDistribution));
 
-  const filtered = cases.filter((c) => {
-    if (riskFilter && c.riskBand !== riskFilter) return false;
-    if (statusFilter && c.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!c.companyName.toLowerCase().includes(q) && !c.id.toLowerCase().includes(q) && !c.declarationId.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }).sort((a, b) => b.riskScore - a.riskScore);
+  const filtered = React.useMemo(() => {
+    const q = search.toLowerCase();
+    return cases
+      .filter((c) => {
+        if (riskFilter && c.riskBand !== riskFilter) return false;
+        if (statusFilter && c.status !== statusFilter) return false;
+        if (q && !c.companyName.toLowerCase().includes(q)
+              && !c.id.toLowerCase().includes(q)
+              && !c.declarationId.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a, b) => b.riskScore - a.riskScore);
+  }, [cases, riskFilter, statusFilter, search]);
 
   const slice = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  // Top 10 high-risk companies
-  const byCompany = new Map<string, { name: string; count: number; avgScore: number; totalDuty: number }>();
-  for (const c of cases) {
-    const cur = byCompany.get(c.companyId) ?? { name: c.companyName, count: 0, avgScore: 0, totalDuty: 0 };
-    cur.count++;
-    cur.avgScore += c.riskScore;
-    cur.totalDuty += c.dutyAtRisk;
-    byCompany.set(c.companyId, cur);
-  }
-  const topCompanies = Array.from(byCompany.entries()).map(([id, v]) => ({
-    id, name: v.name, count: v.count,
-    avgScore: Math.round(v.avgScore / v.count),
-    totalDuty: v.totalDuty,
-  })).sort((a, b) => b.avgScore - a.avgScore).slice(0, 10);
+  // Top 10 high-risk companies — single pass over cases.
+  const topCompanies = React.useMemo(() => {
+    const byCompany = new Map<string, { name: string; count: number; sumScore: number; totalDuty: number }>();
+    for (const c of cases) {
+      const cur = byCompany.get(c.companyId) ?? { name: c.companyName, count: 0, sumScore: 0, totalDuty: 0 };
+      cur.count++;
+      cur.sumScore += c.riskScore;
+      cur.totalDuty += c.dutyAtRisk;
+      byCompany.set(c.companyId, cur);
+    }
+    return Array.from(byCompany.entries())
+      .map(([id, v]) => ({ id, name: v.name, count: v.count, avgScore: Math.round(v.sumScore / v.count), totalDuty: v.totalDuty }))
+      .sort((a, b) => b.avgScore - a.avgScore)
+      .slice(0, 10);
+  }, [cases]);
 
   const openCase = (declarationId: string) => {
     logPCAView(declarationId, user);
@@ -145,7 +149,12 @@ export function PCADashboard() {
             ) : (
               <table className="table table-dense">
                 <thead>
-                  <tr><th>Şirkət</th><th>İşlər</th><th>Ort. skor</th><th>Rüsum risk</th></tr>
+                  <tr>
+                    <th>Şirkət</th>
+                    <th className="cell-num">İşlər</th>
+                    <th className="cell-num">Ort. skor</th>
+                    <th className="cell-num">Rüsum risk</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {topCompanies.map((c) => (
@@ -221,9 +230,9 @@ export function PCADashboard() {
                       <th>İş №</th>
                       <th>Şirkət</th>
                       <th>Risk dərəcəsi</th>
-                      <th>Skor</th>
+                      <th className="cell-num">Skor</th>
                       <th>Status</th>
-                      <th>Rüsum risk ₼</th>
+                      <th className="cell-num">Rüsum risk ₼</th>
                       <th>HS kodu</th>
                       <th>Tarix</th>
                       <th className="cell-actions">Əməllər</th>

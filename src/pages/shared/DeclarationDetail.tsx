@@ -2,7 +2,6 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
-import { useForm, FormProvider } from 'react-hook-form';
 import {
   ArrowLeft, CheckCircle, XCircle, AlertTriangle, MessageSquare,
   RefreshCw, UserCog, ChevronRight, Send, Eye, Info,
