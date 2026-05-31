@@ -4,6 +4,7 @@ import { EmptyState } from '../../components/ui/Primitives';
 import { formatDateTime, relativeTime } from '../../lib/utils';
 import { AlertTriangle, X } from 'lucide-react';
 import { toast } from '../../store/toastStore';
+import { ANOMALY_PATTERN_LABEL } from '../../lib/i18n';
 
 export function AnomaliesPage() {
   const anomalies = useDataStore((s) => s.pcaAnomalies);
@@ -30,8 +31,8 @@ export function AnomaliesPage() {
     <div>
       <div className="section-header">
         <div>
-          <h1>Anomaliyalar</h1>
-          <p className="text-muted">AI tərəfindən aşkarlanan davranış nümunələri</p>
+          <h1>Anomaliya Aşkarlama</h1>
+          <p className="text-muted">Süni intellekt tərəfindən aşkarlanan şübhəli davranış nümunələri</p>
         </div>
       </div>
 
@@ -39,7 +40,7 @@ export function AnomaliesPage() {
         <div className="card-body">
           <div className="filter-bar">
             <select className="select" value={sevFilter} onChange={(e) => setSevFilter(e.target.value)}>
-              <option value="">Bütün şiddətlər</option>
+              <option value="">Bütün şiddət səviyyələri</option>
               <option value="Kritik">Kritik</option>
               <option value="Yüksək">Yüksək</option>
               <option value="Orta">Orta</option>
@@ -47,18 +48,18 @@ export function AnomaliesPage() {
             </select>
             <select className="select" value={patternFilter} onChange={(e) => setPatternFilter(e.target.value)}>
               <option value="">Bütün nümunələr</option>
-              {patterns.map((p) => <option key={p} value={p}>{p}</option>)}
+              {patterns.map((p) => <option key={p} value={p}>{ANOMALY_PATTERN_LABEL[p] ?? p}</option>)}
             </select>
             <label className="checkbox-row" style={{ alignItems: 'center', margin: 0 }}>
               <input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} />
-              <span>İmtina edilmişləri göstər</span>
+              <span>Gizlədilmiş anomaliyaları göstər</span>
             </label>
           </div>
 
           {filtered.length === 0 ? (
             <EmptyState
               icon={<AlertTriangle size={24} />}
-              title="Anomaliya yoxdur"
+              title="Anomaliya aşkarlanmayıb"
               hint="Hazırda göstərilən filtrlər üçün anomaliya tapılmadı"
             />
           ) : (
@@ -69,19 +70,19 @@ export function AnomaliesPage() {
                   <div key={a.id} className={`ai-flag ${sev}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <strong>{a.patternLabel}</strong>
+                        <strong>{ANOMALY_PATTERN_LABEL[a.patternCode] ?? a.patternLabel}</strong>
                         <span className="badge" style={{ background: 'rgba(255,255,255,.5)', fontSize: 11 }}>{a.severity}</span>
-                        {a.dismissed && <span className="badge" style={{ background: 'var(--n-200)', color: 'var(--n-600)' }}>İmtina</span>}
+                        {a.dismissed && <span className="badge" style={{ background: 'var(--n-200)', color: 'var(--n-600)' }}>Gizlədilib</span>}
                       </div>
                       <div style={{ fontSize: 13 }}>{a.description}</div>
                       <div style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>
                         {formatDateTime(a.detectedAt)} ({relativeTime(a.detectedAt)})
-                        {a.affectedDeclarationIds.length > 0 && ` · ${a.affectedDeclarationIds.length} bəyannamə təsirlənir`}
+                        {a.affectedDeclarationIds.length > 0 && ` · ${a.affectedDeclarationIds.length} bəyannamə təsirlənib`}
                       </div>
                     </div>
                     {!a.dismissed && (
                       <button className="btn btn-ghost btn-sm" onClick={() => handleDismiss(a.id)}>
-                        <X size={14} /> İmtina
+                        <X size={14} /> Gizlət
                       </button>
                     )}
                   </div>

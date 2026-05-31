@@ -19,7 +19,7 @@ import { useDataStore } from '../../store/dataStore';
 import { runAI } from '../../lib/ai';
 import { toast } from '../../store/toastStore';
 // dynamic departments come via Step1 -> useDataStore
-import type { AttachedDocument, DocumentTypeCode, DocumentGroup, Role, ValidationIssue } from '../../types';
+import type { AttachedDocument, DocumentTypeCode, DocumentGroup, ValidationIssue } from '../../types';
 import { uid } from '../../lib/utils';
 import {
   validateDocumentsAgainstPolicy, validateDocumentFields, validateDeclaration, ValidationError,
@@ -517,8 +517,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
       methods.setError('_file', { type: 'manual', message: 'Fayl yükləyin' });
       return;
     }
-    const { _file, _visibleTo, ...fields } = values;
-    const visibleTo = (_visibleTo as Role[] | undefined) ?? ['user', 'inspector', 'departmentHead', 'boss', 'pca'];
+    const { _file, ...fields } = values;
     const candidate: AttachedDocument = {
       id: uid('doc'),
       typeCode,
@@ -529,7 +528,9 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
       uploadedAt: _file.uploadedAt,
       fields,
       isComplete: false,
-      visibleTo,
+      // Visibility is mandatory and uniform: every audit-related role always
+      // sees the document. No per-user toggle is exposed in UI.
+      visibleTo: ['user', 'inspector', 'departmentHead', 'boss', 'pca'],
     };
     // HARD GATE — each document must pass validation before it can be attached.
     const dv = validateDocumentFields(candidate);
@@ -570,7 +571,6 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
         <form onSubmit={onSubmit}>
           <FileUploaderField name="_file" label="Fayl" hint="PDF, JPG, PNG qəbul edilir" />
           <DocumentFields typeCode={typeCode} />
-          <VisibilityPicker />
         </form>
       </FormProvider>
     </Modal>
@@ -776,54 +776,6 @@ function PackingListFields() {
         <Plus size={14} /> Sətir əlavə et
       </button>
     </>
-  );
-}
-
-const VISIBILITY_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'user',           label: 'Mən (sənəd sahibi)' },
-  { value: 'inspector',      label: 'Müfəttiş' },
-  { value: 'departmentHead', label: 'Şöbə Rəisi' },
-  { value: 'boss',           label: 'Baş Direktor' },
-  { value: 'pca',            label: 'PCA Auditor' },
-];
-
-// Audit-mandated visibility: customs/PCA/audit roles MUST always have access
-// to documents the user uploaded — owners cannot hide evidence from inspectors,
-// department heads, the Boss, or PCA. The picker still exists for cosmetic
-// disclosure preferences (e.g. peer departments) but supervisory roles are
-// pinned on.
-const MANDATORY_VIEWERS: Role[] = ['user', 'inspector', 'departmentHead', 'boss', 'pca'];
-
-function VisibilityPicker() {
-  const { setValue, watch } = useFormContext();
-  const cur: Role[] = watch('_visibleTo') ?? [...MANDATORY_VIEWERS];
-  React.useEffect(() => {
-    // self-heal stored visibility if it was previously narrowed before this
-    // policy took effect.
-    const missing = MANDATORY_VIEWERS.filter((r) => !cur.includes(r));
-    if (missing.length > 0) {
-      setValue('_visibleTo', Array.from(new Set([...cur, ...MANDATORY_VIEWERS])), { shouldDirty: false });
-    }
-  }, [cur, setValue]);
-
-  return (
-    <div className="form-group" style={{ marginTop: 12, padding: 12, background: 'var(--n-50)', borderRadius: 8, border: '1px solid var(--n-200)' }}>
-      <label className="label">Bu sənədə kim baxa bilər?</label>
-      <div className="help-text" style={{ marginBottom: 6 }}>
-        Audit qaydalarına görə bütün gömrük, müfəttiş və PCA rolları sənədi mütləq görür — bu seçimləri söndürmək mümkün deyil.
-      </div>
-      <div className="chip-row">
-        {VISIBILITY_OPTIONS.map((o) => (
-          <button type="button" key={o.value}
-            className={`chip ${cur.includes(o.value) ? 'active' : ''}`}
-            onClick={() => { /* mandatory — no toggle */ }}
-            disabled
-            title="Audit tələbi — dəyişdirilə bilməz">
-            🔒 {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 

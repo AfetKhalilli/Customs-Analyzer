@@ -5,6 +5,7 @@ import { useDataStore } from '../../store/dataStore';
 import { StatusBadge, RiskBadge, EmptyState, Pagination } from '../../components/ui/Primitives';
 import { ALL_STATUSES } from '../../types';
 import { formatDate } from '../../lib/utils';
+import { DECLARATION_STATUS_LABEL } from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function DeclarationsList() {
@@ -62,10 +63,10 @@ export function DeclarationsList() {
 
   const titleByRole: Record<string, string> = {
     user: 'Bəyannamələrim',
-    inspector: 'Mənə təyin olunmuş bəyannamələr',
-    departmentHead: 'Şöbə bəyannamələri',
-    boss: 'Bütün bəyannamələr',
-    pca: 'Audit üçün bəyannamələr',
+    inspector: 'Mənə Təyin Olunmuş Bəyannamələr',
+    departmentHead: 'Şöbə Bəyannamələri',
+    boss: 'Bütün Bəyannamələr',
+    pca: 'Audit üçün Bəyannamələr',
   };
 
   return (
@@ -80,10 +81,10 @@ export function DeclarationsList() {
             <input className="input search" placeholder="ID, sahib və ya istinad ilə axtar..."
               value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <select className="select" value={kindFilter} onChange={(e) => { setKindFilter(e.target.value); setPage(1); }}>
-              <option value="">Bütün növlər</option>
-              <option value="Idxal">İdxal</option>
-              <option value="Ixrac">İxrac</option>
-              <option value="Tranzit">Tranzit</option>
+              <option value="">Bütün bəyannamə növləri</option>
+              <option value="Idxal">İdxal Bəyannaməsi</option>
+              <option value="Ixrac">İxrac Bəyannaməsi</option>
+              <option value="Tranzit">Tranzit Bəyannaməsi</option>
             </select>
             {(user.role === 'boss' || user.role === 'pca') && (
               <select className="select" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}>
@@ -93,7 +94,7 @@ export function DeclarationsList() {
             )}
             <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
               <option value="">Bütün statuslar</option>
-              {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {ALL_STATUSES.map((s) => <option key={s} value={s}>{DECLARATION_STATUS_LABEL[s] ?? s}</option>)}
             </select>
             {(statusFilter || kindFilter || deptFilter || search) && (
               <button className="btn btn-secondary btn-sm" onClick={() => { setStatusFilter(''); setKindFilter(''); setDeptFilter(''); setSearch(''); setPage(1); }}>

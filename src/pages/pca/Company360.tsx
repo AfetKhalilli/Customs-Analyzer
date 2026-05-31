@@ -6,6 +6,9 @@ import { Tabs, StatusBadge, RiskBadge, PCARiskBadge, EmptyState, Avatar } from '
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay } from '../../lib/utils';
 import { Bookmark, ArrowLeft, ExternalLink } from 'lucide-react';
 import { toast } from '../../store/toastStore';
+import {
+  FINDING_CATEGORY_LABEL, FINDING_STATUS_LABEL, ANOMALY_PATTERN_LABEL,
+} from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function Company360() {
@@ -38,7 +41,7 @@ export function Company360() {
 
   const toggle = () => {
     toggleWatchlist(user.id, id!);
-    toast.success(isWatched ? 'İzləmə siyahısından çıxarıldı' : 'İzləmə siyahısına əlavə edildi');
+    toast.success(isWatched ? 'Şirkət izləmə siyahısından çıxarıldı' : 'Şirkət izləmə siyahısına əlavə edildi');
   };
 
   const handleOpenDecl = (declId: string) => {
@@ -80,15 +83,15 @@ export function Company360() {
               <div className="kpi-value">{companyDecls.length}</div>
             </div>
             <div className="kpi-card purple">
-              <div className="kpi-label">PCA işləri</div>
+              <div className="kpi-label">Audit İşləri</div>
               <div className="kpi-value">{companyCases.length}</div>
             </div>
             <div className="kpi-card amber">
-              <div className="kpi-label">Ort. risk</div>
+              <div className="kpi-label">Orta Risk Skoru</div>
               <div className="kpi-value">{avgRisk}</div>
             </div>
             <div className="kpi-card red">
-              <div className="kpi-label">Rüsum risk</div>
+              <div className="kpi-label">Risk Altında Rüsum</div>
               <div className="kpi-value" style={{ fontSize: 18 }}>{formatCurrency(totalDuty)}</div>
             </div>
           </div>
@@ -112,12 +115,12 @@ export function Company360() {
 
       {tab === 'overview' && (
         <div className="card"><div className="card-body">
-          <h3>Qısa məlumat</h3>
-          <p>Bu səhifə {companyName} şirkətinin bütün gömrük fəaliyyətinin auditi üçün cəmlənmiş görünüş təqdim edir.</p>
+          <h3>Qısa Məlumat</h3>
+          <p>Bu səhifə {companyName} şirkətinin bütün gömrük fəaliyyətinin audit üçün cəmlənmiş 360° görünüşünü təqdim edir.</p>
           <div className="divider" />
           <p><b>Ümumi bəyannamələr:</b> {companyDecls.length}</p>
-          <p><b>Aktiv PCA işləri:</b> {companyCases.filter((c) => c.status !== 'Closed').length}</p>
-          <p><b>Açıq anomaliyalar:</b> {companyAnomalies.filter((a) => !a.dismissed).length}</p>
+          <p><b>Aktiv audit işləri:</b> {companyCases.filter((c) => c.status !== 'Closed').length}</p>
+          <p><b>Aşkar anomaliyalar:</b> {companyAnomalies.filter((a) => !a.dismissed).length}</p>
           <p><b>Açıq tapıntılar:</b> {companyFindings.filter((f) => f.status === 'Açıq' || f.status === 'İşlənir').length}</p>
         </div></div>
       )}
@@ -222,11 +225,11 @@ export function Company360() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {companyAnomalies.map((a) => (
                 <div key={a.id} className={`ai-flag ${a.severity === 'Kritik' || a.severity === 'Yüksək' ? 'critical' : a.severity === 'Orta' ? 'warning' : 'info'}`}>
-                  <strong>{a.patternLabel}</strong>
+                  <strong>{ANOMALY_PATTERN_LABEL[a.patternCode] ?? a.patternLabel}</strong>
                   <div style={{ marginTop: 4 }}>{a.description}</div>
                   <div style={{ fontSize: 11, color: 'var(--n-500)', marginTop: 4 }}>
                     Aşkarlama: {formatDateTime(a.detectedAt)} · Şiddət: {a.severity}
-                    {a.dismissed && ' · İmtina edildi'}
+                    {a.dismissed && ' · Gizlədilib'}
                   </div>
                 </div>
               ))}
@@ -238,21 +241,21 @@ export function Company360() {
       {tab === 'findings' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>Başlıq</th><th>Kateqoriya</th><th>Şiddət</th><th>Status</th><th className="cell-num">Rüsum təsiri</th><th>Tarix</th></tr></thead>
+            <thead><tr><th>Başlıq</th><th>Pozuntu Növü</th><th>Şiddət</th><th>Status</th><th className="cell-num">Rüsum təsiri</th><th>Tarix</th></tr></thead>
             <tbody>
               {companyFindings.map((f) => (
                 <tr key={f.id} style={{ cursor: 'default' }}>
                   <td><b>{f.title}</b></td>
-                  <td>{f.category}</td>
+                  <td>{FINDING_CATEGORY_LABEL[f.category] ?? f.category}</td>
                   <td>{f.severity}</td>
-                  <td>{f.status}</td>
+                  <td>{FINDING_STATUS_LABEL[f.status] ?? f.status}</td>
                   <td className="cell-num">{formatCurrency(f.dutyImpact)}</td>
                   <td>{formatDate(f.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {companyFindings.length === 0 && <EmptyState title="Tapıntı yoxdur" />}
+          {companyFindings.length === 0 && <EmptyState title="Audit tapıntısı yoxdur" />}
         </div>
       )}
 

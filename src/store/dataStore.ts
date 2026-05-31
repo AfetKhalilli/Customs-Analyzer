@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type {
   AppUser, Declaration, LogEntry, Notification, DeclarationStatus,
   PCACase, PCAFinding, PCAAnomaly, Watchlist, IndividualUser, ThresholdSet, PCAStatus,
+  PenaltyRecord, EscalationRecord, EscalationLevel, AuditHistoryEntry, ReopenRecord,
 } from '../types';
 import { uid } from '../lib/utils';
 import { runAI } from '../lib/ai';
@@ -11,6 +12,7 @@ import { seedUsers, seedDeclarations, seedLogs, seedNotifications } from '../dat
 import { DEFAULT_THRESHOLDS } from '../lib/referenceData';
 import { DEPARTMENTS as DEFAULT_DEPARTMENTS } from '../types';
 import { validateDeclaration, ValidationError } from '../lib/validation';
+import { calculateInspectionDeadline } from '../lib/i18n';
 
 interface DataState {
   initialized: boolean;
@@ -22,6 +24,9 @@ interface DataState {
   pcaFindings: PCAFinding[];
   pcaAnomalies: PCAAnomaly[];
   watchlists: Watchlist[];
+  // PCA workflow records
+  penalties: PenaltyRecord[];
+  escalations: EscalationRecord[];
   departments: string[];        // dynamic — admin can add/remove
   thresholds: ThresholdSet;     // dynamic — admin can edit
 
@@ -68,6 +73,42 @@ interface DataState {
   toggleWatchlist: (auditorId: string, companyId: string) => void;
   dismissAnomaly: (id: string) => void;
   logPCAView: (declarationId: string, auditor: AppUser) => void;
+
+  // PCA workflow actions (new — full business operations)
+  takeForAudit: (caseId: string, actor: AppUser, opts: { notes?: string; expectedCompletionAt?: string }) => { ok: boolean; error?: string };
+  openFindingWithWorkflow: (input: {
+    caseId: string;
+    declarationId: string;
+    companyId: string;
+    companyName: string;
+    category: PCAFinding['category'];
+    severity: PCAFinding['severity'];
+    title: string;
+    description: string;
+    dutyImpact: number;
+    legalBasis: string;
+    requestExplanation: boolean;
+  }, actor: AppUser) => { ok: boolean; error?: string; findingId?: string };
+  requestExplanation: (findingId: string, actor: AppUser, message: string) => { ok: boolean; error?: string };
+  applyPenalty: (input: {
+    caseId: string;
+    reason: string;
+    legalBasis: string;
+    amount: number;
+    currency: string;
+    dueDate: string;
+    comments: string;
+  }, actor: AppUser) => { ok: boolean; error?: string; penaltyId?: string };
+  escalateCase: (input: {
+    caseId: string;
+    level: EscalationLevel;
+    reason: string;
+    details: string;
+  }, actor: AppUser) => { ok: boolean; error?: string; escalationId?: string };
+  closePCACase: (caseId: string, actor: AppUser, reason: string) => { ok: boolean; error?: string };
+  reopenPCACase: (caseId: string, actor: AppUser, reason: string) => { ok: boolean; error?: string };
+  reassignCaseAuditor: (caseId: string, auditorId: string, actor: AppUser, note?: string) => { ok: boolean; error?: string };
+  addCaseNote: (caseId: string, note: string, actor: AppUser) => { ok: boolean; error?: string };
 }
 
 const ALLOWED_TRANSITIONS: Record<DeclarationStatus, DeclarationStatus[]> = {
@@ -93,6 +134,8 @@ export const useDataStore = create<DataState>()(
       pcaFindings: [],
       pcaAnomalies: [],
       watchlists: [],
+      penalties: [],
+      escalations: [],
       departments: [...DEFAULT_DEPARTMENTS],
       thresholds: DEFAULT_THRESHOLDS,
 
@@ -122,6 +165,7 @@ export const useDataStore = create<DataState>()(
         set({
           users, declarations, logs, notifications,
           pcaCases: [], pcaFindings: [], pcaAnomalies: [], watchlists: [],
+          penalties: [], escalations: [],
           departments: [...DEFAULT_DEPARTMENTS],
           thresholds: DEFAULT_THRESHOLDS,
           initialized: true,
@@ -246,13 +290,13 @@ export const useDataStore = create<DataState>()(
       },
 
       addDeclaration: (d) => {
-        // Audit invariant: every document MUST be visible to supervisory roles
-        // regardless of what came in from the wizard / API. Owners cannot hide
-        // evidence from inspectors, dept-heads, boss, or PCA.
-        const MUST_SEE = ['user', 'inspector', 'departmentHead', 'boss', 'pca'] as const;
+        // Audit policy: every supervisory role ALWAYS sees uploaded documents.
+        // We strip any historical visibleTo restriction the API/wizard might
+        // have sent and pin all roles on; owners cannot hide evidence.
+        const ALL_ROLES = ['user', 'inspector', 'departmentHead', 'boss', 'pca'] as const;
         const sanitizedDocs = (d.documents ?? []).map((doc) => ({
           ...doc,
-          visibleTo: Array.from(new Set([...(doc.visibleTo ?? []), ...MUST_SEE])),
+          visibleTo: [...ALL_ROLES] as any,
         }));
         d = { ...d, documents: sanitizedDocs };
 
@@ -467,6 +511,15 @@ export const useDataStore = create<DataState>()(
             requestedAt: new Date().toISOString(),
           };
         }
+        // Inspection workflow: when audit starts, lock the 2-day deadline.
+        if (next === 'Yoxlanılır' && !d.inspectionStartedAt) {
+          const startedAt = new Date().toISOString();
+          patch.inspectionStartedAt = startedAt;
+          patch.inspectionDeadline = calculateInspectionDeadline(startedAt);
+        }
+        if (next === 'Təsdiq' || next === 'Rədd') {
+          patch.inspectionCompletedAt = new Date().toISOString();
+        }
         if (next === 'Tamamlanmış') patch.completedAt = new Date().toISOString();
 
         set((s) => ({
@@ -619,6 +672,9 @@ export const useDataStore = create<DataState>()(
             watchlisted: false,
             findings: [],
             notes: '',
+            auditProgressPct: 0,
+            history: [],
+            reopenHistory: [],
           };
         });
         set({ pcaCases: cases });
@@ -683,16 +739,428 @@ export const useDataStore = create<DataState>()(
         get().addLog({
           declarationId, actorId: auditor.id, actorRole: 'pca',
           actorDisplayName: dispName(auditor), action: 'VIEWED_BY_PCA',
-          description: 'PCA auditoru baxış keçirdi (oxuma rejimi)',
+          description: 'PCA Auditoru tərəfindən baxış keçirildi',
         });
+      },
+
+      // ── PCA workflow: AUDITƏ GÖTÜR ────────────────────────────────────
+      takeForAudit: (caseId, actor, opts) => {
+        const cs = get().pcaCases.find((c) => c.id === caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca') return { ok: false, error: 'Yalnız PCA Auditoru audit başlada bilər' };
+        if (cs.status === 'Closed') return { ok: false, error: 'Bağlanmış iş üzərində audit başlamaq olmaz — əvvəlcə yenidən açın' };
+
+        const nowIso = new Date().toISOString();
+        const expected = opts.expectedCompletionAt || (() => {
+          const t = new Date(); t.setDate(t.getDate() + 7); return t.toISOString();
+        })();
+
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'AUDIT_STARTED',
+          description: `Audit başladı. Auditor: ${dispName(actor)}. Gözlənilən bitmə: ${expected.slice(0, 10)}`,
+          meta: { auditorId: actor.id, expectedCompletionAt: expected, notes: opts.notes },
+        };
+
+        set((s) => ({
+          pcaCases: s.pcaCases.map((c) => c.id === caseId ? {
+            ...c, status: 'In Review' as PCAStatus,
+            auditorId: actor.id,
+            auditorDisplayName: dispName(actor),
+            auditStartedAt: nowIso,
+            auditExpectedCompletionAt: expected,
+            auditProgressPct: 10,
+            notes: opts.notes ? `${c.notes ? c.notes + '\n' : ''}${nowIso.slice(0, 10)}: ${opts.notes}` : c.notes,
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'AUDIT_STARTED',
+          description: `Audit prosesi başladı (iş: ${cs.id})`,
+          meta: { caseId: cs.id, expectedCompletionAt: expected },
+        });
+        get().pushNotification({
+          userId: cs.companyId, title: 'Audit prosesi başlanıb',
+          body: `${cs.id} nömrəli işiniz üzrə audit yoxlaması başlandı.`,
+          link: `/declaration/${cs.declarationId}`, type: 'warning',
+        });
+        // Notify supervisory roles (department head + boss) so they see the audit.
+        const supervisors = get().users.filter((u) => u.role === 'departmentHead' || u.role === 'boss');
+        for (const sup of supervisors) {
+          get().pushNotification({
+            userId: sup.id, title: 'PCA auditi başladıldı',
+            body: `Auditor ${dispName(actor)} ${cs.companyName} üzrə yoxlamaya başladı.`,
+            link: `/pca/company/${cs.companyId}`, type: 'info',
+          });
+        }
+        return { ok: true };
+      },
+
+      // ── PCA workflow: TAPINTI AÇ ──────────────────────────────────────
+      openFindingWithWorkflow: (input, actor) => {
+        const cs = get().pcaCases.find((c) => c.id === input.caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca') return { ok: false, error: 'Yalnız PCA Auditoru tapıntı aça bilər' };
+        if (!input.title.trim() || !input.legalBasis.trim()) {
+          return { ok: false, error: 'Başlıq və hüquqi əsas mütləqdir' };
+        }
+
+        const findingId = uid('find');
+        const nowIso = new Date().toISOString();
+        const finding: PCAFinding = {
+          id: findingId, caseId: input.caseId,
+          declarationId: input.declarationId, companyId: input.companyId, companyName: input.companyName,
+          category: input.category, severity: input.severity, status: 'Açıq',
+          title: input.title.trim(), description: input.description.trim(),
+          dutyImpact: input.dutyImpact, legalBasis: input.legalBasis.trim(),
+          explanationRequested: input.requestExplanation,
+          explanationRequestedAt: input.requestExplanation ? nowIso : undefined,
+          investigationStartedAt: nowIso,
+          createdBy: actor.id,
+          createdByName: dispName(actor),
+          createdAt: nowIso,
+        };
+
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'FINDING_OPENED',
+          description: `Tapıntı: ${input.title} (${input.category})`,
+          meta: { findingId, category: input.category, severity: input.severity },
+        };
+
+        set((s) => ({
+          pcaFindings: [finding, ...s.pcaFindings],
+          pcaCases: s.pcaCases.map((c) => c.id === input.caseId ? {
+            ...c,
+            findings: [...c.findings, findingId],
+            auditProgressPct: Math.max(c.auditProgressPct ?? 0, 40),
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: input.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'FINDING_OPENED',
+          description: `Tapıntı açıldı: ${input.title} · Kateqoriya: ${input.category}`,
+          meta: { findingId, caseId: input.caseId },
+        });
+        get().pushNotification({
+          userId: input.companyId, title: 'Audit tapıntısı qeydə alındı',
+          body: `${input.companyName} üzrə yeni tapıntı: ${input.title}.${input.requestExplanation ? ' İzahat tələb olunur.' : ''}`,
+          link: `/declaration/${input.declarationId}`, type: 'warning',
+        });
+        if (input.requestExplanation) {
+          get().addLog({
+            declarationId: input.declarationId, actorId: actor.id, actorRole: actor.role,
+            actorDisplayName: dispName(actor), action: 'EXPLANATION_REQUESTED',
+            description: `İzahat tələbi: ${input.title}`,
+            meta: { findingId },
+          });
+        }
+        return { ok: true, findingId };
+      },
+
+      requestExplanation: (findingId, actor, message) => {
+        const f = get().pcaFindings.find((x) => x.id === findingId);
+        if (!f) return { ok: false, error: 'Tapıntı tapılmadı' };
+        if (actor.role !== 'pca') return { ok: false, error: 'Yalnız PCA Auditoru izahat tələb edə bilər' };
+        const nowIso = new Date().toISOString();
+        set((s) => ({
+          pcaFindings: s.pcaFindings.map((x) => x.id === findingId ? {
+            ...x, explanationRequested: true, explanationRequestedAt: nowIso,
+            description: `${x.description}\n\n[İzahat tələbi ${nowIso.slice(0, 10)}]: ${message}`,
+          } : x),
+        }));
+        get().addLog({
+          declarationId: f.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'EXPLANATION_REQUESTED',
+          description: `İzahat tələbi göndərildi: ${f.title}`,
+        });
+        get().pushNotification({
+          userId: f.companyId, title: 'İzahat tələb olunur',
+          body: `${f.title} tapıntısı üzrə izahat tələb edilir.`,
+          link: `/declaration/${f.declarationId}`, type: 'warning',
+        });
+        return { ok: true };
+      },
+
+      // ── PCA workflow: CƏRİMƏ TƏTBİQ ET ─────────────────────────────────
+      applyPenalty: (input, actor) => {
+        const cs = get().pcaCases.find((c) => c.id === input.caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca') return { ok: false, error: 'Yalnız PCA Auditoru cərimə tətbiq edə bilər' };
+        if (!input.reason.trim()) return { ok: false, error: 'Səbəb tələb olunur' };
+        if (!input.legalBasis.trim()) return { ok: false, error: 'Hüquqi əsas tələb olunur' };
+        if (!input.amount || input.amount <= 0) return { ok: false, error: 'Cərimə məbləği müsbət olmalıdır' };
+        if (!input.dueDate) return { ok: false, error: 'Son ödəniş tarixi tələb olunur' };
+
+        const penaltyId = uid('pen');
+        const nowIso = new Date().toISOString();
+        const penalty: PenaltyRecord = {
+          id: penaltyId, caseId: cs.id,
+          declarationId: cs.declarationId, companyId: cs.companyId,
+          reason: input.reason.trim(), legalBasis: input.legalBasis.trim(),
+          amount: input.amount, currency: input.currency || 'AZN',
+          dueDate: input.dueDate, comments: input.comments.trim(),
+          createdAt: nowIso, createdBy: actor.id, createdByName: dispName(actor),
+          status: 'Tətbiq Edildi',
+        };
+
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'PENALTY_APPLIED',
+          description: `Cərimə tətbiq edildi: ${input.amount.toFixed(2)} ${penalty.currency} — ${input.reason.slice(0, 60)}`,
+          meta: { penaltyId, amount: input.amount, dueDate: input.dueDate },
+        };
+
+        set((s) => ({
+          penalties: [penalty, ...s.penalties],
+          pcaCases: s.pcaCases.map((c) => c.id === cs.id ? {
+            ...c, status: 'Penalty Applied' as PCAStatus,
+            auditProgressPct: Math.max(c.auditProgressPct ?? 0, 70),
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'PENALTY_APPLIED',
+          description: `Cərimə tətbiq edildi: ${input.amount.toFixed(2)} ${penalty.currency}. Səbəb: ${input.reason.slice(0, 80)}`,
+          meta: { penaltyId, caseId: cs.id },
+        });
+        get().pushNotification({
+          userId: cs.companyId, title: 'Cərimə tətbiq edildi',
+          body: `${cs.id}: ${input.amount.toFixed(2)} ${penalty.currency} cərimə. Son tarix: ${input.dueDate}`,
+          link: `/declaration/${cs.declarationId}`, type: 'error',
+        });
+        const supervisors = get().users.filter((u) => u.role === 'departmentHead' || u.role === 'boss');
+        for (const sup of supervisors) {
+          get().pushNotification({
+            userId: sup.id, title: 'Cərimə qərarı qeydə alındı',
+            body: `${cs.companyName} üzrə ${input.amount.toFixed(2)} ${penalty.currency} məbləğində cərimə tətbiq edildi.`,
+            link: `/pca/company/${cs.companyId}`, type: 'warning',
+          });
+        }
+        return { ok: true, penaltyId };
+      },
+
+      // ── PCA workflow: ESKALƏ ET ───────────────────────────────────────
+      escalateCase: (input, actor) => {
+        const cs = get().pcaCases.find((c) => c.id === input.caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca') return { ok: false, error: 'Yalnız PCA Auditoru eskaləsiya edə bilər' };
+        if (!input.reason.trim()) return { ok: false, error: 'Eskaləsiya səbəbi tələb olunur' };
+
+        // Determine who the case is assigned to based on escalation level.
+        const assignTo = (() => {
+          if (input.level === 'BaşDirektor') {
+            return get().users.find((u) => u.role === 'boss')?.id ?? '';
+          }
+          if (input.level === 'Departament') {
+            const decl = get().declarations.find((d) => d.id === cs.declarationId);
+            const dept = decl?.department;
+            return get().users.find((u) =>
+              u.role === 'departmentHead' && u.entityType === 'individual' &&
+              (u as IndividualUser).department === dept,
+            )?.id ?? '';
+          }
+          return '';
+        })();
+
+        const escId = uid('esc');
+        const nowIso = new Date().toISOString();
+        const escalation: EscalationRecord = {
+          id: escId, caseId: cs.id,
+          declarationId: cs.declarationId, companyId: cs.companyId,
+          level: input.level, reason: input.reason.trim(), details: input.details.trim(),
+          createdAt: nowIso, createdBy: actor.id, createdByName: dispName(actor),
+          assignedTo: assignTo, status: 'Açıq',
+        };
+
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_ESCALATED',
+          description: `İş eskaləsiya edildi: ${input.level} · ${input.reason.slice(0, 60)}`,
+          meta: { escalationId: escId, level: input.level, assignedTo: assignTo },
+        };
+
+        set((s) => ({
+          escalations: [escalation, ...s.escalations],
+          pcaCases: s.pcaCases.map((c) => c.id === cs.id ? {
+            ...c, status: 'Escalated' as PCAStatus,
+            auditProgressPct: Math.max(c.auditProgressPct ?? 0, 85),
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_ESCALATED',
+          description: `İş eskaləsiya edildi (${input.level}): ${input.reason.slice(0, 80)}`,
+          meta: { escalationId: escId, caseId: cs.id, level: input.level },
+        });
+        if (assignTo) {
+          get().pushNotification({
+            userId: assignTo, title: 'Yeni eskaləsiya alındı',
+            body: `${cs.companyName} üzrə audit işi sizə eskaləsiya edildi.`,
+            link: `/pca/company/${cs.companyId}`, type: 'warning',
+          });
+        }
+        get().pushNotification({
+          userId: cs.companyId, title: 'İşiniz eskaləsiya edildi',
+          body: `${cs.id} işiniz yuxarı orqana ötürüldü.`,
+          link: `/declaration/${cs.declarationId}`, type: 'warning',
+        });
+        return { ok: true, escalationId: escId };
+      },
+
+      // ── PCA workflow: İŞİ BAĞLA ───────────────────────────────────────
+      closePCACase: (caseId, actor, reason) => {
+        const cs = get().pcaCases.find((c) => c.id === caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca' && actor.role !== 'boss') {
+          return { ok: false, error: 'Yalnız PCA Auditoru və ya Baş Direktor işi bağlaya bilər' };
+        }
+        if (!reason.trim()) return { ok: false, error: 'Bağlama səbəbi tələb olunur' };
+
+        const nowIso = new Date().toISOString();
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_CLOSED',
+          description: `İş bağlandı. Səbəb: ${reason.slice(0, 80)}`,
+          meta: { reason },
+        };
+
+        set((s) => ({
+          pcaCases: s.pcaCases.map((c) => c.id === caseId ? {
+            ...c, status: 'Closed' as PCAStatus,
+            auditProgressPct: 100,
+            closedAt: nowIso, closedById: actor.id, closedByName: dispName(actor),
+            closeReason: reason,
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_CLOSED',
+          description: `İş bağlandı: ${cs.id}. Səbəb: ${reason.slice(0, 80)}`,
+          meta: { caseId: cs.id },
+        });
+        get().pushNotification({
+          userId: cs.companyId, title: 'Audit işi bağlandı',
+          body: `${cs.id} işiniz bağlanmış statusuna keçirildi.`,
+          link: `/declaration/${cs.declarationId}`, type: 'info',
+        });
+        return { ok: true };
+      },
+
+      // ── PCA workflow: İŞİ YENİDƏN AÇ ─────────────────────────────────
+      reopenPCACase: (caseId, actor, reason) => {
+        const cs = get().pcaCases.find((c) => c.id === caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (actor.role !== 'pca' && actor.role !== 'boss') {
+          return { ok: false, error: 'Yalnız PCA Auditoru və ya Baş Direktor işi yenidən aça bilər' };
+        }
+        if (cs.status !== 'Closed') return { ok: false, error: 'Yalnız bağlanmış iş yenidən açıla bilər' };
+        if (!reason.trim()) return { ok: false, error: 'Yenidən açma səbəbi tələb olunur' };
+
+        const nowIso = new Date().toISOString();
+        const reopenEntry: ReopenRecord = {
+          id: uid('reo'), caseId: cs.id, at: nowIso,
+          actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), reason: reason.trim(),
+        };
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_REOPENED',
+          description: `İş yenidən açıldı. Səbəb: ${reason.slice(0, 80)}`,
+          meta: { reason },
+        };
+
+        set((s) => ({
+          pcaCases: s.pcaCases.map((c) => c.id === caseId ? {
+            ...c, status: 'In Review' as PCAStatus,
+            auditProgressPct: 30,
+            closedAt: undefined, closedById: undefined, closedByName: undefined, closeReason: undefined,
+            reopenHistory: [...(c.reopenHistory ?? []), reopenEntry],
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'CASE_REOPENED',
+          description: `İş yenidən açıldı: ${cs.id}. Səbəb: ${reason.slice(0, 80)}`,
+          meta: { caseId: cs.id },
+        });
+        get().pushNotification({
+          userId: cs.companyId, title: 'Audit işi yenidən açıldı',
+          body: `${cs.id} işiniz yenidən nəzərdən keçirilir.`,
+          link: `/declaration/${cs.declarationId}`, type: 'warning',
+        });
+        return { ok: true };
+      },
+
+      reassignCaseAuditor: (caseId, auditorId, actor, note) => {
+        const cs = get().pcaCases.find((c) => c.id === caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        const newAuditor = get().users.find((u) => u.id === auditorId && u.role === 'pca');
+        if (!newAuditor) return { ok: false, error: 'PCA Auditoru tapılmadı' };
+        const nowIso = new Date().toISOString();
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'STATUS_CHANGE',
+          description: `Auditor dəyişdirildi: ${dispName(newAuditor)}${note ? ' — ' + note : ''}`,
+          meta: { auditorId: newAuditor.id },
+        };
+        set((s) => ({
+          pcaCases: s.pcaCases.map((c) => c.id === caseId ? {
+            ...c, auditorId: newAuditor.id, auditorDisplayName: dispName(newAuditor),
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+        get().pushNotification({
+          userId: newAuditor.id, title: 'Yeni audit işi təyinatı',
+          body: `${cs.companyName} üzrə audit işi sizə təyin olundu.`,
+          link: `/pca/company/${cs.companyId}`, type: 'info',
+        });
+        return { ok: true };
+      },
+
+      addCaseNote: (caseId, note, actor) => {
+        const cs = get().pcaCases.find((c) => c.id === caseId);
+        if (!cs) return { ok: false, error: 'Audit işi tapılmadı' };
+        if (!note.trim()) return { ok: false, error: 'Qeyd boş ola bilməz' };
+        const nowIso = new Date().toISOString();
+        const histEntry: AuditHistoryEntry = {
+          id: uid('hist'), at: nowIso, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'NOTE_ADDED',
+          description: note.slice(0, 200),
+        };
+        set((s) => ({
+          pcaCases: s.pcaCases.map((c) => c.id === caseId ? {
+            ...c,
+            notes: `${c.notes ? c.notes + '\n' : ''}${nowIso.slice(0, 10)} · ${dispName(actor)}: ${note}`,
+            history: [...(c.history ?? []), histEntry],
+          } : c),
+        }));
+        get().addLog({
+          declarationId: cs.declarationId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'COMMENT',
+          description: `Audit qeydi: ${note.slice(0, 80)}${note.length > 80 ? '…' : ''}`,
+          meta: { caseId: cs.id },
+        });
+        return { ok: true };
       },
     }),
     {
       name: 'ca-data',
-      // Bump version when shape changes so existing users get re-seeded with fixed DH FINs,
-      // new doc.visibleTo fields, AI explainability fields, dynamic departments, thresholds,
-      // and (v3) the centralized validation rules + critical-override AI.
-      version: 3,
+      // v4: PCA workflow records (penalties, escalations, audit history, reopen),
+      //     new finding categories enum, inspection deadlines, dropped visibleTo.
+      version: 4,
       migrate: (_persisted, _ver) => undefined as any, // discard any earlier persisted state
     }
   )

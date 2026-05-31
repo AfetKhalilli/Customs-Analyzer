@@ -1,21 +1,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm, FormProvider } from 'react-hook-form';
 import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { EmptyState, Modal, Pagination } from '../../components/ui/Primitives';
-import { TextField, SelectField, NumberField, TextareaField } from '../../components/forms/Fields';
 import { formatDate, formatCurrency } from '../../lib/utils';
 import { Plus, FileSearch } from 'lucide-react';
 import { toast } from '../../store/toastStore';
-import type { FindingCategory, FindingSeverity, FindingStatus, PCACase } from '../../types';
+import {
+  FINDING_CATEGORY_LABEL, FINDING_CATEGORIES, FINDING_STATUS_LABEL,
+} from '../../lib/i18n';
+import type { FindingCategory, FindingSeverity, PCACase } from '../../types';
 
 export function FindingsPage() {
   const navigate = useNavigate();
   const user = useCurrentUser()!;
   const findings = useDataStore((s) => s.pcaFindings);
   const cases = useDataStore((s) => s.pcaCases);
-  const addFinding = useDataStore((s) => s.addPCAFinding);
+  const openFinding = useDataStore((s) => s.openFindingWithWorkflow);
 
   const [open, setOpen] = React.useState(false);
   const [catFilter, setCatFilter] = React.useState('');
@@ -37,11 +38,11 @@ export function FindingsPage() {
     <div>
       <div className="section-header">
         <div>
-          <h1>Tapıntılar</h1>
-          <p className="text-muted">Audit tapıntılarının reyestri</p>
+          <h1>Audit Tapıntıları</h1>
+          <p className="text-muted">PCA tərəfindən aşkarlanmış pozuntuların reyestri</p>
         </div>
         <button className="btn" onClick={() => setOpen(true)} disabled={cases.length === 0}>
-          <Plus size={14} /> Yeni tapıntı
+          <Plus size={14} /> Yeni Tapıntı Aç
         </button>
       </div>
 
@@ -49,15 +50,13 @@ export function FindingsPage() {
         <div className="card-body">
           <div className="filter-bar">
             <select className="select" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
-              <option value="">Bütün kateqoriyalar</option>
-              <option value="Aşağı qiymət">Aşağı qiymət</option>
-              <option value="HS kodu səhvi">HS kodu səhvi</option>
-              <option value="Çəki uyğunsuzluğu">Çəki uyğunsuzluğu</option>
-              <option value="Sənəd çatışmır">Sənəd çatışmır</option>
-              <option value="Digər">Digər</option>
+              <option value="">Bütün pozuntu növləri</option>
+              {FINDING_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{FINDING_CATEGORY_LABEL[c]}</option>
+              ))}
             </select>
             <select className="select" value={sevFilter} onChange={(e) => setSevFilter(e.target.value)}>
-              <option value="">Bütün şiddətlər</option>
+              <option value="">Bütün şiddət səviyyələri</option>
               <option value="Kritik">Kritik</option>
               <option value="Yüksək">Yüksək</option>
               <option value="Orta">Orta</option>
@@ -65,18 +64,18 @@ export function FindingsPage() {
             </select>
             <select className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">Bütün statuslar</option>
-              <option value="Açıq">Açıq</option>
-              <option value="İşlənir">İşlənir</option>
-              <option value="Bağlı">Bağlı</option>
-              <option value="Əsassız">Əsassız</option>
+              <option value="Açıq">{FINDING_STATUS_LABEL['Açıq']}</option>
+              <option value="İşlənir">{FINDING_STATUS_LABEL['İşlənir']}</option>
+              <option value="Bağlı">{FINDING_STATUS_LABEL['Bağlı']}</option>
+              <option value="Əsassız">{FINDING_STATUS_LABEL['Əsassız']}</option>
             </select>
           </div>
 
           {filtered.length === 0 ? (
             <EmptyState
               icon={<FileSearch size={24} />}
-              title="Tapıntı yoxdur"
-              hint={findings.length === 0 ? '“Yeni tapıntı” düyməsi ilə ilk tapıntını yaradın' : 'Filtrlərə uyğun nəticə yoxdur'}
+              title="Audit tapıntısı yoxdur"
+              hint={findings.length === 0 ? '"Yeni Tapıntı Aç" düyməsi ilə ilk tapıntını qeydə alın' : 'Filtrlərə uyğun nəticə yoxdur'}
             />
           ) : (
             <>
@@ -87,7 +86,7 @@ export function FindingsPage() {
                       <th>ID</th>
                       <th>Şirkət</th>
                       <th>Başlıq</th>
-                      <th>Kateqoriya</th>
+                      <th>Pozuntu Növü</th>
                       <th>Şiddət</th>
                       <th>Status</th>
                       <th className="cell-num">Rüsum təsiri</th>
@@ -100,9 +99,9 @@ export function FindingsPage() {
                         <td className="cell-id">{f.id.slice(-8)}</td>
                         <td>{f.companyName}</td>
                         <td><b>{f.title}</b></td>
-                        <td>{f.category}</td>
+                        <td>{FINDING_CATEGORY_LABEL[f.category] ?? f.category}</td>
                         <td>{f.severity}</td>
-                        <td>{f.status}</td>
+                        <td>{FINDING_STATUS_LABEL[f.status] ?? f.status}</td>
                         <td className="cell-num">{formatCurrency(f.dutyImpact)}</td>
                         <td>{formatDate(f.createdAt)}</td>
                       </tr>
@@ -117,60 +116,112 @@ export function FindingsPage() {
       </div>
 
       <FindingFormModal open={open} onClose={() => setOpen(false)} cases={cases} onSave={(data) => {
-        addFinding({ ...data, createdBy: user.id, createdByName: user.entityType === 'individual' ? `${user.firstName} ${user.lastName}` : '' });
-        toast.success('Tapıntı yaradıldı');
-        setOpen(false);
+        const c = cases.find((x) => x.id === data.caseId);
+        if (!c) { toast.error('PCA işi tapılmadı'); return; }
+        const r = openFinding({
+          caseId: c.id,
+          declarationId: c.declarationId,
+          companyId: c.companyId,
+          companyName: c.companyName,
+          category: data.category,
+          severity: data.severity,
+          title: data.title,
+          description: data.description,
+          dutyImpact: data.dutyImpact,
+          legalBasis: data.legalBasis,
+          requestExplanation: data.requestExplanation,
+        }, user);
+        if (r.ok) { toast.success('Tapıntı qeydə alındı'); setOpen(false); } else toast.error(r.error ?? 'Xəta');
       }} />
     </div>
   );
 }
 
-function FindingFormModal({ open, onClose, cases, onSave }: { open: boolean; onClose: () => void; cases: PCACase[]; onSave: (d: any) => void }) {
-  const methods = useForm({
-    mode: 'onChange',
-    reValidateMode: 'onChange',
-    defaultValues: {
-      caseId: '', title: '', description: '',
-      category: 'Aşağı qiymət' as FindingCategory,
-      severity: 'Orta' as FindingSeverity,
-      status: 'Açıq' as FindingStatus,
-      dutyImpact: 0,
-    },
-  });
+function FindingFormModal({ open, onClose, cases, onSave }: {
+  open: boolean; onClose: () => void; cases: PCACase[];
+  onSave: (d: {
+    caseId: string; title: string; description: string;
+    category: FindingCategory; severity: FindingSeverity;
+    dutyImpact: number; legalBasis: string; requestExplanation: boolean;
+  }) => void;
+}) {
+  const [caseId, setCaseId] = React.useState('');
+  const [title, setTitle] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [category, setCategory] = React.useState<FindingCategory>('Gömrük Dəyərinin Təhrif Edilməsi');
+  const [severity, setSeverity] = React.useState<FindingSeverity>('Orta');
+  const [legalBasis, setLegalBasis] = React.useState('');
+  const [dutyImpact, setDutyImpact] = React.useState(0);
+  const [requestExplanation, setRequestExplanation] = React.useState(true);
 
-  const onSubmit = methods.handleSubmit((values) => {
-    if (!values.caseId) return;
-    const c = cases.find((x) => x.id === values.caseId);
-    if (!c) return;
-    onSave({
-      ...values,
-      declarationId: c.declarationId,
-      companyId: c.companyId,
-      companyName: c.companyName,
-    });
-    methods.reset();
-  });
+  React.useEffect(() => {
+    if (!open) {
+      setCaseId(''); setTitle(''); setDescription('');
+      setCategory('Gömrük Dəyərinin Təhrif Edilməsi'); setSeverity('Orta');
+      setLegalBasis(''); setDutyImpact(0); setRequestExplanation(true);
+    }
+  }, [open]);
+
+  if (!open) return null;
 
   return (
-    <Modal open={open} onClose={onClose} title="Yeni tapıntı" size="lg" footer={
+    <Modal open={open} onClose={onClose} title="Yeni Audit Tapıntısı" size="lg" footer={
       <>
-        <button className="btn btn-secondary" onClick={onClose}>Ləğv et</button>
-        <button className="btn" onClick={onSubmit}>Yarat</button>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn" onClick={() => {
+          if (!caseId) { toast.error('PCA işi seçin'); return; }
+          if (!title.trim()) { toast.error('Başlıq tələb olunur'); return; }
+          if (!legalBasis.trim()) { toast.error('Hüquqi əsas tələb olunur'); return; }
+          onSave({ caseId, title: title.trim(), description: description.trim(), category, severity, dutyImpact, legalBasis: legalBasis.trim(), requestExplanation });
+        }}>Tapıntını Qeyd Et</button>
       </>
     }>
-      <FormProvider {...methods}>
-        <form onSubmit={onSubmit}>
-          <SelectField name="caseId" label="PCA işi" required options={cases.map((c) => ({ value: c.id, label: `${c.id} — ${c.companyName}` }))} />
-          <TextField name="title" label="Başlıq" required />
-          <TextareaField name="description" label="Təsvir" />
-          <div className="form-row cols-3">
-            <SelectField name="category" label="Kateqoriya" required options={['Aşağı qiymət', 'HS kodu səhvi', 'Çəki uyğunsuzluğu', 'Sənəd çatışmır', 'Digər']} />
-            <SelectField name="severity" label="Şiddət" required options={['Aşağı', 'Orta', 'Yüksək', 'Kritik']} />
-            <SelectField name="status" label="Status" required options={['Açıq', 'İşlənir', 'Bağlı', 'Əsassız']} />
-          </div>
-          <NumberField name="dutyImpact" label="Rüsum təsiri (₼)" step="0.01" />
-        </form>
-      </FormProvider>
+      <div className="form-group">
+        <label className="label">PCA İşi <span className="req">*</span></label>
+        <select className="select" value={caseId} onChange={(e) => setCaseId(e.target.value)}>
+          <option value="">Seçin...</option>
+          {cases.map((c) => (
+            <option key={c.id} value={c.id}>{c.id} — {c.companyName}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="label">Tapıntı başlığı <span className="req">*</span></label>
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="form-row cols-2">
+        <div className="form-group">
+          <label className="label">Pozuntu Növü <span className="req">*</span></label>
+          <select className="select" value={category} onChange={(e) => setCategory(e.target.value as FindingCategory)}>
+            {FINDING_CATEGORIES.map((c) => <option key={c} value={c}>{FINDING_CATEGORY_LABEL[c]}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="label">Şiddət</label>
+          <select className="select" value={severity} onChange={(e) => setSeverity(e.target.value as FindingSeverity)}>
+            <option value="Aşağı">Aşağı</option>
+            <option value="Orta">Orta</option>
+            <option value="Yüksək">Yüksək</option>
+            <option value="Kritik">Kritik</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="label">Hüquqi əsas <span className="req">*</span></label>
+        <input className="input" value={legalBasis} onChange={(e) => setLegalBasis(e.target.value)} placeholder="məs: Gömrük Məcəlləsi maddə 159" />
+      </div>
+      <div className="form-group">
+        <label className="label">Təsvir</label>
+        <textarea className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+      <div className="form-group">
+        <label className="label">Rüsum təsiri (₼)</label>
+        <input className="input" type="number" step="0.01" value={dutyImpact} onChange={(e) => setDutyImpact(Number(e.target.value))} />
+      </div>
+      <div className="checkbox-row">
+        <input id="reqExpFP" type="checkbox" checked={requestExplanation} onChange={(e) => setRequestExplanation(e.target.checked)} />
+        <label htmlFor="reqExpFP">Şirkətdən rəsmi izahat tələb et və araşdırma prosesini başlat</label>
+      </div>
     </Modal>
   );
 }

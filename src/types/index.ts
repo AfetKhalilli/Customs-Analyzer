@@ -86,8 +86,11 @@ export interface AttachedDocument {
   uploadedAt: string;
   fields: Record<string, any>;
   isComplete: boolean;
-  // Per-document RBAC: roles allowed to see this document. Defaults to all roles.
-  visibleTo: Role[];
+  // Audit policy: every supervisory role (inspector, departmentHead, boss, pca)
+  // ALWAYS sees every uploaded document. This field is retained on the schema
+  // only for backwards compatibility; new records always set it to every role
+  // and the UI no longer exposes a "Who can see" picker.
+  visibleTo?: Role[];
 }
 
 export interface ShipmentInfo {
@@ -262,13 +265,21 @@ export interface Declaration {
   rejectReason?: string;
   uploadedAt: string;
   completedAt?: string;
+  // Inspection tracking — populated when an inspector starts the review.
+  inspectionStartedAt?: string;
+  inspectionDeadline?: string;
+  inspectionCompletedAt?: string;
 }
 
 // ============== Logs ==============
 export type LogAction =
   | 'UPLOAD' | 'AI_RUN' | 'ASSIGNED' | 'STATUS_CHANGE' | 'COMMENT'
   | 'CORRECTION_REQUESTED' | 'RESUBMITTED' | 'DECISION' | 'AUTO_COMPLETED'
-  | 'REASSIGNED' | 'VIEWED_BY_PCA' | 'FINDING_OPENED' | 'WATCHLIST_TOGGLE';
+  | 'REASSIGNED' | 'VIEWED_BY_PCA' | 'FINDING_OPENED' | 'WATCHLIST_TOGGLE'
+  // PCA workflow actions
+  | 'AUDIT_STARTED' | 'PENALTY_APPLIED' | 'CASE_ESCALATED'
+  | 'CASE_CLOSED' | 'CASE_REOPENED' | 'INSPECTION_DEADLINE'
+  | 'EXPLANATION_REQUESTED';
 
 export interface LogEntry {
   id: string;
@@ -296,8 +307,72 @@ export interface Notification {
 }
 
 // ============== PCA (Doc 2) ==============
+// Backend keys (Pending/In Review/...) are kept unchanged for API contract
+// stability; the UI translates them via lib/i18n.ts.
 export type PCAStatus = 'Pending' | 'In Review' | 'Approved' | 'Penalty Applied' | 'Escalated' | 'Closed';
 export type PCARiskBand = 'Aşağı' | 'Orta' | 'Yüksək' | 'Kritik';
+
+export type EscalationLevel = 'Departament' | 'BaşDirektor' | 'NazirlerKabineti' | 'HüquqMühafizə';
+
+// Audit timeline entry — full traceable workflow history attached to each case.
+export interface AuditHistoryEntry {
+  id: string;
+  at: string;
+  actorId: string;
+  actorRole: Role;
+  actorDisplayName: string;
+  action:
+    | 'AUDIT_STARTED' | 'FINDING_OPENED' | 'PENALTY_APPLIED'
+    | 'CASE_ESCALATED' | 'CASE_CLOSED' | 'CASE_REOPENED'
+    | 'EXPLANATION_REQUESTED' | 'NOTE_ADDED' | 'STATUS_CHANGE';
+  description: string;
+  meta?: Record<string, any>;
+}
+
+// Penalty record — independent business object linked to a case.
+export interface PenaltyRecord {
+  id: string;
+  caseId: string;
+  declarationId: string;
+  companyId: string;
+  reason: string;
+  legalBasis: string;
+  amount: number;
+  currency: string;
+  dueDate: string;
+  comments: string;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+  status: 'Tətbiq Edildi' | 'Ödənildi' | 'Mübahisəli' | 'Ləğv Edildi';
+}
+
+// Escalation record — independent business object linked to a case.
+export interface EscalationRecord {
+  id: string;
+  caseId: string;
+  declarationId: string;
+  companyId: string;
+  level: EscalationLevel;
+  reason: string;
+  details: string;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+  assignedTo: string;
+  status: 'Açıq' | 'Cavablandırılıb' | 'Bağlanmış';
+}
+
+// Reopen record — every reopen captures user/date/reason.
+export interface ReopenRecord {
+  id: string;
+  caseId: string;
+  at: string;
+  actorId: string;
+  actorRole: Role;
+  actorDisplayName: string;
+  reason: string;
+}
 
 export interface PCACase {
   id: string;
@@ -313,9 +388,29 @@ export interface PCACase {
   watchlisted: boolean;
   findings: string[];
   notes: string;
+  // Workflow state — populated as the audit progresses.
+  auditorId?: string;
+  auditorDisplayName?: string;
+  auditStartedAt?: string;
+  auditExpectedCompletionAt?: string;
+  auditProgressPct?: number;
+  closedAt?: string;
+  closedById?: string;
+  closedByName?: string;
+  closeReason?: string;
+  history?: AuditHistoryEntry[];
+  reopenHistory?: ReopenRecord[];
 }
 
-export type FindingCategory = 'Aşağı qiymət' | 'HS kodu səhvi' | 'Çəki uyğunsuzluğu' | 'Sənəd çatışmır' | 'Digər';
+// New 7-category enum — stored values match the displayed labels.
+export type FindingCategory =
+  | 'Gömrük Dəyərinin Təhrif Edilməsi'
+  | 'HS Kodunun Səhv Təsnifləşdirilməsi'
+  | 'Mənşə Məlumatlarının Saxtalaşdırılması'
+  | 'Sənəd Saxtakarlığı'
+  | 'Gömrük Ödənişlərindən Yayınma'
+  | 'Gömrük Prosedurlarının Pozulması'
+  | 'Digər Pozuntu';
 export type FindingSeverity = 'Aşağı' | 'Orta' | 'Yüksək' | 'Kritik';
 export type FindingStatus = 'Açıq' | 'İşlənir' | 'Bağlı' | 'Əsassız';
 
@@ -331,6 +426,13 @@ export interface PCAFinding {
   title: string;
   description: string;
   dutyImpact: number;
+  legalBasis?: string;
+  // Investigation workflow
+  explanationRequested?: boolean;
+  explanationRequestedAt?: string;
+  explanationText?: string;
+  explanationReceivedAt?: string;
+  investigationStartedAt?: string;
   createdBy: string;
   createdByName: string;
   createdAt: string;
@@ -356,3 +458,7 @@ export interface Watchlist {
   auditorId: string;
   companyIds: string[];
 }
+
+// Re-export labels for convenience (kept here so call sites can import a
+// single module). Implementations live in lib/i18n.ts to avoid type cycles.
+export type { } from '../lib/i18n';

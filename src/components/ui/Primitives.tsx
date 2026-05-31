@@ -2,6 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, AlertCircle, Inbox } from 'lucide-react';
 import type { DeclarationStatus, RiskLevel, PCAStatus, Role, PCARiskBand } from '../../types';
 import { STATUS_META, RISK_META, PCA_STATUS_META, PCA_RISK_META } from '../../lib/constants';
+import {
+  DECLARATION_STATUS_LABEL, PCA_STATUS_LABEL, PCA_RISK_BAND_LABEL,
+  RISK_LEVEL_LABEL, ROLE_LABEL, CHANNEL_LABEL,
+} from '../../lib/i18n';
 import { useToastStore } from '../../store/toastStore';
 import { initials, cn } from '../../lib/utils';
 
@@ -9,7 +13,7 @@ export function StatusBadge({ status }: { status: DeclarationStatus }) {
   const meta = STATUS_META[status];
   return (
     <span className="badge dot" style={{ background: meta.bg, color: meta.text }}>
-      {status}
+      {DECLARATION_STATUS_LABEL[status] ?? status}
     </span>
   );
 }
@@ -18,7 +22,7 @@ export function RiskBadge({ level, score }: { level: RiskLevel; score?: number }
   const meta = RISK_META[level];
   return (
     <span className="badge" style={{ background: meta.bg, color: meta.text }}>
-      {meta.label}{score !== undefined ? ` · ${score}` : ''}
+      {RISK_LEVEL_LABEL[level] ?? meta.label}{score !== undefined ? ` · ${score}` : ''}
     </span>
   );
 }
@@ -27,7 +31,7 @@ export function PCAStatusBadge({ status }: { status: PCAStatus }) {
   const meta = PCA_STATUS_META[status];
   return (
     <span className="badge dot" style={{ background: meta.bg, color: meta.text }}>
-      {status}
+      {PCA_STATUS_LABEL[status] ?? status}
     </span>
   );
 }
@@ -35,24 +39,18 @@ export function PCAStatusBadge({ status }: { status: PCAStatus }) {
 export function PCARiskBadge({ band }: { band: PCARiskBand }) {
   const meta = PCA_RISK_META[band];
   return (
-    <span className="badge" style={{ background: meta.bg, color: meta.text }}>{band}</span>
+    <span className="badge" style={{ background: meta.bg, color: meta.text }}>
+      {PCA_RISK_BAND_LABEL[band] ?? band}
+    </span>
   );
 }
 
 export function RoleChip({ role }: { role: Role }) {
-  const label: Record<Role, string> = {
-    user: 'İstifadəçi',
-    inspector: 'Müfəttiş',
-    departmentHead: 'Şöbə Rəisi',
-    boss: 'Baş Direktor',
-    pca: 'PCA Auditor',
-  };
-  return <span className="role-chip">{label[role]}</span>;
+  return <span className="role-chip">{ROLE_LABEL[role]}</span>;
 }
 
 export function ChannelPill({ channel }: { channel: 'GREEN' | 'YELLOW' | 'RED' }) {
-  const label: Record<string, string> = { GREEN: 'YAŞIL', YELLOW: 'SARI', RED: 'QIRMIZI' };
-  return <span className={cn('channel-pill', channel)}>{label[channel]}</span>;
+  return <span className={cn('channel-pill', channel)}>{CHANNEL_LABEL[channel]}</span>;
 }
 
 interface ModalProps {

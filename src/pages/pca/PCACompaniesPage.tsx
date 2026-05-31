@@ -41,22 +41,22 @@ export function PCACompaniesPage() {
       <div className="section-header">
         <div>
           <h1>Şirkətlər</h1>
-          <p className="text-muted">Bütün PCA tərkibinə daxil olan şirkətlər</p>
+          <p className="text-muted">Audit reyestrindəki bütün şirkətlər</p>
         </div>
       </div>
 
       <div className="card">
         <div className="card-body">
           <div className="filter-bar">
-            <input className="input search" placeholder="Şirkət adı..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+            <input className="input search" placeholder="Şirkət adı ilə axtarın..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <label className="checkbox-row" style={{ alignItems: 'center', margin: 0 }}>
               <input type="checkbox" checked={onlyWatched} onChange={(e) => setOnlyWatched(e.target.checked)} />
-              <span>Yalnız izləmə siyahısı</span>
+              <span>Yalnız izləmə siyahısındakılar</span>
             </label>
           </div>
 
           {rows.length === 0 ? (
-            <EmptyState title="Şirkət yoxdur" />
+            <EmptyState title="Şirkət tapılmadı" />
           ) : (
             <>
               <div className="table-wrap">
@@ -65,10 +65,10 @@ export function PCACompaniesPage() {
                     <tr>
                       <th></th>
                       <th>Şirkət</th>
-                      <th className="cell-num">İşlərin sayı</th>
-                      <th>Ən yüksək risk</th>
-                      <th className="cell-num">Ort. skor</th>
-                      <th className="cell-num">Ümumi rüsum risk</th>
+                      <th className="cell-num">Audit İşləri</th>
+                      <th>Ən Yüksək Risk</th>
+                      <th className="cell-num">Orta Risk Skoru</th>
+                      <th className="cell-num">Ümumi Rüsum Riski</th>
                     </tr>
                   </thead>
                   <tbody>

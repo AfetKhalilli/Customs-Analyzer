@@ -11,10 +11,14 @@ import { useForm as useFormRHF, FormProvider as FormProviderRHF } from 'react-ho
 import { StatusBadge, RiskBadge, ChannelPill, Modal, Tabs, EmptyState, Avatar, RoleChip } from '../../components/ui/Primitives';
 import { TextField, TextareaField, SelectField, FileUploaderField } from '../../components/forms/Fields';
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay, cn } from '../../lib/utils';
-import { DOCUMENT_TYPES, DOCUMENT_GROUPS, RISK_META } from '../../lib/constants';
+import { DOCUMENT_TYPES, DOCUMENT_GROUPS, RISK_META, CURRENCIES } from '../../lib/constants';
 import { toast } from '../../store/toastStore';
 import { validateDeclaration } from '../../lib/validation';
-import type { IndividualUser } from '../../types';
+import {
+  DECLARATION_STATUS_LABEL, PCA_STATUS_LABEL, FINDING_CATEGORY_LABEL, FINDING_CATEGORIES,
+  FINDING_STATUS_LABEL, ESCALATION_LEVEL_LABEL, formatInspectionDeadline,
+} from '../../lib/i18n';
+import type { IndividualUser, FindingCategory, FindingSeverity, EscalationLevel, PCACase } from '../../types';
 
 export function DeclarationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -157,14 +161,38 @@ export function DeclarationDetail() {
               <div>{decl.customsPoint}</div>
             </div>
             <div>
-              <small className="text-muted">Təyin olunmuş müfəttiş</small>
+              <small className="text-muted">Təyin Olunmuş Müfəttiş</small>
               <div>{inspectorName ?? '— Təyin olunmayıb —'}</div>
             </div>
             <div>
-              <small className="text-muted">Dəyər</small>
+              <small className="text-muted">Bəyan Dəyəri</small>
               <div className="font-bold">{decl.totals.totalDeclaredValue.toFixed(2)} {decl.totals.currency}</div>
             </div>
           </div>
+
+          {(decl.inspectionDeadline || decl.inspectionStartedAt) && (() => {
+            const d = formatInspectionDeadline(decl.inspectionDeadline);
+            const completed = !!decl.inspectionCompletedAt;
+            const tone = completed ? 'info' : d.overdue ? 'error' : (d.hours < 12 ? 'warning' : 'info');
+            return (
+              <div className={`banner ${tone}`} style={{ marginTop: 10 }}>
+                <Info size={20} />
+                <div className="b-body">
+                  <div className="b-title">
+                    Yoxlama Müddəti — maksimum 2 iş günü
+                  </div>
+                  <div>
+                    {decl.inspectionStartedAt && <>Başlama: <b>{formatDateTime(decl.inspectionStartedAt)}</b> · </>}
+                    {decl.inspectionDeadline && <>Son tarix: <b>{formatDateTime(decl.inspectionDeadline)}</b> · </>}
+                    {completed
+                      ? <>Tamamlandı: <b>{formatDateTime(decl.inspectionCompletedAt!)}</b></>
+                      : <>Vəziyyət: <b>{d.label}</b></>
+                    }
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {!validation.ok && (
             <div className="banner error mt-3">
@@ -594,31 +622,44 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
   const navigate = useNavigate();
   const cases = useDataStore((s) => s.pcaCases);
   const findings = useDataStore((s) => s.pcaFindings);
+  const penalties = useDataStore((s) => s.penalties);
+  const escalations = useDataStore((s) => s.escalations);
   const logs = useDataStore((s) => s.logs);
   const watchlists = useDataStore((s) => s.watchlists);
   const toggleWatchlist = useDataStore((s) => s.toggleWatchlist);
-  const setPCACaseStatus = useDataStore((s) => s.setPCACaseStatus);
-  const addFinding = useDataStore((s) => s.addPCAFinding);
-  const addComment = useDataStore((s) => s.addComment);
+  const takeForAudit = useDataStore((s) => s.takeForAudit);
+  const openFinding = useDataStore((s) => s.openFindingWithWorkflow);
+  const applyPenalty = useDataStore((s) => s.applyPenalty);
+  const escalateCase = useDataStore((s) => s.escalateCase);
+  const closePCACase = useDataStore((s) => s.closePCACase);
+  const reopenPCACase = useDataStore((s) => s.reopenPCACase);
+  const addCaseNote = useDataStore((s) => s.addCaseNote);
 
   const ourCase = cases.find((c) => c.declarationId === decl.id);
   const ourFindings = findings.filter((f) => f.declarationId === decl.id);
+  const ourPenalties = penalties.filter((p) => p.declarationId === decl.id);
+  const ourEscalations = escalations.filter((e) => e.declarationId === decl.id);
   const inspectorLogs = logs.filter((l) =>
     l.declarationId === decl.id && (l.actorRole === 'inspector' || l.action === 'DECISION' || l.action === 'CORRECTION_REQUESTED')
   );
   const watch = watchlists.find((w) => w.auditorId === auditor.id);
   const isWatched = watch?.companyIds.includes(decl.ownerId) ?? false;
 
+  const [takeAuditOpen, setTakeAuditOpen] = React.useState(false);
   const [findingOpen, setFindingOpen] = React.useState(false);
+  const [penaltyOpen, setPenaltyOpen] = React.useState(false);
+  const [escalateOpen, setEscalateOpen] = React.useState(false);
+  const [closeOpen, setCloseOpen] = React.useState(false);
+  const [reopenOpen, setReopenOpen] = React.useState(false);
   const [auditNote, setAuditNote] = React.useState('');
 
   const decisionSummary = (() => {
     if (decl.status === 'Tamamlanmış') {
-      if (decl.rejectReason) return { verdict: 'Rədd edildikdən sonra tamamlandı', tone: 'error' as const, detail: decl.rejectReason };
-      return { verdict: 'Təsdiq olundu və tamamlandı', tone: 'success' as const, detail: 'Müfəttiş təsdiqindən sonra avtomatik tamamlandı.' };
+      if (decl.rejectReason) return { verdict: 'Rədd edildikdən sonra bağlandı', tone: 'error' as const, detail: decl.rejectReason };
+      return { verdict: 'Təsdiq olundu və bağlandı', tone: 'success' as const, detail: 'Müfəttiş təsdiqindən sonra sistem tərəfindən bağlandı.' };
     }
-    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq olundu', tone: 'success' as const, detail: 'Müfəttiş bəyannaməni təsdiqlədi.' };
-    if (decl.status === 'Rədd') return { verdict: 'Rədd edildi', tone: 'error' as const, detail: decl.rejectReason ?? 'Səbəb göstərilməyib' };
+    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq Edilib', tone: 'success' as const, detail: 'Müfəttiş bəyannaməni təsdiqlədi.' };
+    if (decl.status === 'Rədd') return { verdict: 'Rədd Edilib', tone: 'error' as const, detail: decl.rejectReason ?? 'Səbəb göstərilməyib' };
     return { verdict: decl.status, tone: 'info' as const, detail: 'Bəyannamə hələ qiymətləndirmə altındadır.' };
   })();
 
@@ -749,34 +790,59 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
         <div className="divider" />
 
         {/* ACTIONS — PCA can take decisions WITHOUT modifying core data */}
-        <h4>6. PCA əməliyyatları</h4>
-        <p className="text-muted text-sm">PCA bəyannamənin özünü dəyişmir — yalnız audit qərarı, tapıntı və izləmə qeydiyyatı əlavə edir.</p>
+        <h4>6. PCA Audit Əməliyyatları</h4>
+        <p className="text-muted text-sm">PCA Auditoru bəyannamənin özünü dəyişmir — yalnız audit qərarı, tapıntı, cərimə, eskaləsiya və qeydlər yaradır.</p>
+
+        {ourCase && (
+          <div className="banner info" style={{ marginTop: 8, marginBottom: 8 }}>
+            <Info size={16} />
+            <div className="b-body">
+              <div className="b-title">Audit işi: {ourCase.id} · Status: {PCA_STATUS_LABEL[ourCase.status]}</div>
+              {ourCase.auditorDisplayName && <div>Auditor: <b>{ourCase.auditorDisplayName}</b></div>}
+              {ourCase.auditStartedAt && <div>Başlama: {formatDate(ourCase.auditStartedAt)} · Gözlənilən bitmə: {ourCase.auditExpectedCompletionAt ? formatDate(ourCase.auditExpectedCompletionAt) : '—'}</div>}
+              {typeof ourCase.auditProgressPct === 'number' && (
+                <div style={{ marginTop: 6 }}>
+                  <div className="rb-track" style={{ height: 6 }}><div className="rb-fill medium" style={{ width: `${ourCase.auditProgressPct}%`, height: 6 }} /></div>
+                  <small>Proqres: {ourCase.auditProgressPct}%</small>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2" style={{ flexWrap: 'wrap', marginTop: 8 }}>
           <button className={`btn ${isWatched ? 'btn-warning' : 'btn-secondary'}`}
             onClick={() => { toggleWatchlist(auditor.id, decl.ownerId); toast.success(isWatched ? 'İzləmə siyahısından çıxarıldı' : 'İzləmə siyahısına əlavə edildi'); }}>
-            {isWatched ? 'İzlənilir' : 'Şirkəti izlə'}
+            {isWatched ? 'İzlənilir' : 'İzləmə Siyahısına Əlavə Et'}
           </button>
-          <button className="btn" onClick={() => setFindingOpen(true)} disabled={!ourCase}>
-            Tapıntı aç
+          {ourCase && ourCase.status === 'Pending' && (
+            <button className="btn" onClick={() => setTakeAuditOpen(true)}>
+              Auditə Götür
+            </button>
+          )}
+          <button className="btn" onClick={() => setFindingOpen(true)} disabled={!ourCase || ourCase.status === 'Closed'}>
+            Tapıntı Aç
           </button>
-          {ourCase && (
+          {ourCase && ourCase.status !== 'Pending' && ourCase.status !== 'Closed' && (
             <>
-              <button className="btn btn-secondary" onClick={() => { setPCACaseStatus(ourCase.id, 'In Review', auditor.id, `Audit başladı: ${decl.id}`); toast.success('PCA işi statusu: In Review'); }}>
-                Auditə götür
+              <button className="btn btn-danger" onClick={() => setPenaltyOpen(true)}>
+                Cərimə Tətbiq Et
               </button>
-              <button className="btn btn-danger" onClick={() => { setPCACaseStatus(ourCase.id, 'Penalty Applied', auditor.id, `Cərimə tətbiq olundu — bəyan: ${decl.id}`); toast.success('Cərimə qeyd olundu'); }}>
-                Cərimə tətbiq et
+              <button className="btn btn-secondary" onClick={() => setEscalateOpen(true)}>
+                Yuxarı Orqana Eskalə Et
               </button>
-              <button className="btn btn-secondary" onClick={() => { setPCACaseStatus(ourCase.id, 'Escalated', auditor.id, `Eskalasiya — bəyan: ${decl.id}`); toast.info('Eskalasiya qeyd olundu'); }}>
-                Eskalə et
-              </button>
-              <button className="btn btn-success" onClick={() => { setPCACaseStatus(ourCase.id, 'Closed', auditor.id, `Audit bağlandı — bəyan: ${decl.id}`); toast.success('İş bağlandı'); }}>
-                İşi bağla
+              <button className="btn btn-success" onClick={() => setCloseOpen(true)}>
+                İşi Bağla
               </button>
             </>
           )}
+          {ourCase && ourCase.status === 'Closed' && (
+            <button className="btn btn-warning" onClick={() => setReopenOpen(true)}>
+              İşi Yenidən Aç
+            </button>
+          )}
           <button className="btn btn-ghost" onClick={() => navigate(`/pca/company/${decl.ownerId}`)}>
-            Şirkət 360° görünüşü →
+            Şirkət Profilinə Keç →
           </button>
         </div>
 
@@ -785,9 +851,13 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
           <textarea className="textarea" rows={2} value={auditNote} onChange={(e) => setAuditNote(e.target.value)}
             placeholder="məs: HS kodu yenidən baxılmalıdır; brokerlə əlaqə saxlanılsın..." />
           <div className="text-right">
-            <button className="btn btn-sm" disabled={!auditNote.trim()}
-              onClick={() => { addComment(decl.id, `[PCA Audit] ${auditNote.trim()}`, auditor); setAuditNote(''); toast.success('Audit qeydi əlavə edildi'); }}>
-              Qeydi əlavə et
+            <button className="btn btn-sm" disabled={!auditNote.trim() || !ourCase}
+              onClick={() => {
+                if (!ourCase) return;
+                const r = addCaseNote(ourCase.id, auditNote.trim(), auditor);
+                if (r.ok) { setAuditNote(''); toast.success('Audit qeydi əlavə edildi'); } else toast.error(r.error ?? 'Xəta');
+              }}>
+              Qeydi Əlavə Et
             </button>
           </div>
         </div>
@@ -802,10 +872,71 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
                 {ourFindings.map((f) => (
                   <tr key={f.id} style={{ cursor: 'default' }}>
                     <td><b>{f.title}</b></td>
-                    <td>{f.category}</td>
+                    <td>{FINDING_CATEGORY_LABEL[f.category] ?? f.category}</td>
                     <td>{f.severity}</td>
-                    <td>{f.status}</td>
-                    <td className="cell-num">{f.dutyImpact.toFixed(0)} ₼</td>
+                    <td>{FINDING_STATUS_LABEL[f.status] ?? f.status}</td>
+                    <td className="cell-num">{formatCurrency(f.dutyImpact)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {ourPenalties.length > 0 && (
+          <>
+            <div className="divider" />
+            <h4>Tətbiq edilmiş cərimələr ({ourPenalties.length})</h4>
+            <table className="table table-dense">
+              <thead><tr><th>Tarix</th><th>Səbəb</th><th>Hüquqi əsas</th><th className="cell-num">Məbləğ</th><th>Son tarix</th><th>Status</th></tr></thead>
+              <tbody>
+                {ourPenalties.map((p) => (
+                  <tr key={p.id} style={{ cursor: 'default' }}>
+                    <td>{formatDate(p.createdAt)}</td>
+                    <td>{p.reason}</td>
+                    <td>{p.legalBasis}</td>
+                    <td className="cell-num">{p.amount.toFixed(2)} {p.currency}</td>
+                    <td>{p.dueDate}</td>
+                    <td>{p.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {ourEscalations.length > 0 && (
+          <>
+            <div className="divider" />
+            <h4>Eskaləsiya tarixçəsi ({ourEscalations.length})</h4>
+            <table className="table table-dense">
+              <thead><tr><th>Tarix</th><th>Səviyyə</th><th>Səbəb</th><th>Status</th></tr></thead>
+              <tbody>
+                {ourEscalations.map((e) => (
+                  <tr key={e.id} style={{ cursor: 'default' }}>
+                    <td>{formatDate(e.createdAt)}</td>
+                    <td>{ESCALATION_LEVEL_LABEL[e.level]}</td>
+                    <td>{e.reason}</td>
+                    <td>{e.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {ourCase && (ourCase.reopenHistory ?? []).length > 0 && (
+          <>
+            <div className="divider" />
+            <h4>Yenidən açılma tarixçəsi ({(ourCase.reopenHistory ?? []).length})</h4>
+            <table className="table table-dense">
+              <thead><tr><th>Tarix</th><th>Açan</th><th>Səbəb</th></tr></thead>
+              <tbody>
+                {(ourCase.reopenHistory ?? []).map((r) => (
+                  <tr key={r.id} style={{ cursor: 'default' }}>
+                    <td>{formatDateTime(r.at)}</td>
+                    <td>{r.actorDisplayName}</td>
+                    <td>{r.reason}</td>
                   </tr>
                 ))}
               </tbody>
@@ -814,22 +945,69 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
         )}
       </div>
 
+      {takeAuditOpen && ourCase && (
+        <TakeAuditModal
+          caseRow={ourCase} onClose={() => setTakeAuditOpen(false)}
+          onSave={({ notes, expectedCompletionAt }) => {
+            const r = takeForAudit(ourCase.id, auditor, { notes, expectedCompletionAt });
+            if (r.ok) { toast.success('Audit prosesi başladı'); setTakeAuditOpen(false); } else toast.error(r.error ?? 'Xəta');
+          }}
+        />
+      )}
+
       {findingOpen && ourCase && (
-        <QuickFindingModal
+        <FindingWorkflowModal
           caseRow={ourCase}
           onClose={() => setFindingOpen(false)}
           onSave={(payload) => {
-            addFinding({
+            const r = openFinding({
               ...payload,
               caseId: ourCase.id,
               declarationId: decl.id,
               companyId: decl.ownerId,
               companyName: decl.ownerDisplayName,
-              createdBy: auditor.id,
-              createdByName: auditor.entityType === 'individual' ? `${auditor.firstName} ${auditor.lastName}` : '',
-            });
-            toast.success('Tapıntı yaradıldı');
-            setFindingOpen(false);
+            }, auditor);
+            if (r.ok) { toast.success('Tapıntı qeydə alındı'); setFindingOpen(false); } else toast.error(r.error ?? 'Xəta');
+          }}
+        />
+      )}
+
+      {penaltyOpen && ourCase && (
+        <PenaltyModal
+          caseRow={ourCase} onClose={() => setPenaltyOpen(false)}
+          onSave={(payload) => {
+            const r = applyPenalty({ ...payload, caseId: ourCase.id }, auditor);
+            if (r.ok) { toast.success('Cərimə tətbiq edildi'); setPenaltyOpen(false); } else toast.error(r.error ?? 'Xəta');
+          }}
+        />
+      )}
+
+      {escalateOpen && ourCase && (
+        <EscalationModal
+          caseRow={ourCase} onClose={() => setEscalateOpen(false)}
+          onSave={(payload) => {
+            const r = escalateCase({ ...payload, caseId: ourCase.id }, auditor);
+            if (r.ok) { toast.success('İş eskaləsiya edildi'); setEscalateOpen(false); } else toast.error(r.error ?? 'Xəta');
+          }}
+        />
+      )}
+
+      {closeOpen && ourCase && (
+        <CloseCaseModal
+          caseRow={ourCase} onClose={() => setCloseOpen(false)}
+          onSave={(reason) => {
+            const r = closePCACase(ourCase.id, auditor, reason);
+            if (r.ok) { toast.success('İş bağlandı'); setCloseOpen(false); } else toast.error(r.error ?? 'Xəta');
+          }}
+        />
+      )}
+
+      {reopenOpen && ourCase && (
+        <ReopenCaseModal
+          caseRow={ourCase} onClose={() => setReopenOpen(false)}
+          onSave={(reason) => {
+            const r = reopenPCACase(ourCase.id, auditor, reason);
+            if (r.ok) { toast.success('İş yenidən açıldı'); setReopenOpen(false); } else toast.error(r.error ?? 'Xəta');
           }}
         />
       )}
@@ -837,53 +1015,262 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
   );
 }
 
-function QuickFindingModal({ caseRow, onClose, onSave }: { caseRow: any; onClose: () => void; onSave: (p: any) => void }) {
+// ────────────────────────────────────────────────────────────────────────────
+// PCA workflow modals — every action requires its own structured business form.
+// ────────────────────────────────────────────────────────────────────────────
+
+function TakeAuditModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (data: { notes: string; expectedCompletionAt: string }) => void;
+}) {
+  const [notes, setNotes] = React.useState('');
+  const [expected, setExpected] = React.useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  return (
+    <Modal open={true} onClose={onClose} size="lg" title={`Auditə Götür — ${caseRow.id}`}
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn" onClick={() => {
+          if (!expected) { toast.error('Gözlənilən bitmə tarixi tələb olunur'); return; }
+          onSave({ notes: notes.trim(), expectedCompletionAt: new Date(expected).toISOString() });
+        }}>Auditi Başlat</button>
+      </>}>
+      <p className="text-muted">{caseRow.companyName} · İş №: {caseRow.id}</p>
+      <div className="form-group">
+        <label className="label">Gözlənilən bitmə tarixi <span className="req">*</span></label>
+        <input className="input" type="date" value={expected} onChange={(e) => setExpected(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+        <div className="help-text">Audit planı və müddət konkret tarixlə qeydə alınır.</div>
+      </div>
+      <div className="form-group">
+        <label className="label">Audit qeydləri</label>
+        <textarea className="textarea" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
+          placeholder="Əhatə dairəsi, fokus sahələri, hipotezalar..." />
+      </div>
+    </Modal>
+  );
+}
+
+function FindingWorkflowModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (data: {
+    title: string; description: string;
+    category: FindingCategory; severity: FindingSeverity;
+    dutyImpact: number; legalBasis: string; requestExplanation: boolean;
+  }) => void;
+}) {
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [category, setCategory] = React.useState<'Aşağı qiymət' | 'HS kodu səhvi' | 'Çəki uyğunsuzluğu' | 'Sənəd çatışmır' | 'Digər'>('Aşağı qiymət');
-  const [severity, setSeverity] = React.useState<'Aşağı' | 'Orta' | 'Yüksək' | 'Kritik'>('Orta');
+  const [category, setCategory] = React.useState<FindingCategory>('Gömrük Dəyərinin Təhrif Edilməsi');
+  const [severity, setSeverity] = React.useState<FindingSeverity>('Orta');
   const [dutyImpact, setDutyImpact] = React.useState(0);
+  const [legalBasis, setLegalBasis] = React.useState('');
+  const [requestExplanation, setRequestExplanation] = React.useState(true);
   return (
-    <Modal open={true} onClose={onClose} size="lg" title={`Yeni tapıntı — ${caseRow.id}`}
+    <Modal open={true} onClose={onClose} size="lg" title={`Tapıntı Aç — ${caseRow.id}`}
       footer={<>
-        <button className="btn btn-secondary" onClick={onClose}>Ləğv et</button>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
         <button className="btn" onClick={() => {
           if (!title.trim()) { toast.error('Başlıq tələb olunur'); return; }
-          onSave({ title: title.trim(), description: description.trim(), category, severity, status: 'Açıq', dutyImpact });
-        }}>Yarat</button>
+          if (!legalBasis.trim()) { toast.error('Hüquqi əsas tələb olunur'); return; }
+          onSave({ title: title.trim(), description: description.trim(), category, severity, dutyImpact, legalBasis: legalBasis.trim(), requestExplanation });
+        }}>Tapıntını Qeyd Et</button>
       </>}>
       <div className="form-group">
-        <label className="label">Başlıq <span className="req">*</span></label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="məs: HS 8517.12 — IMEI yoxlanmayıb" />
+        <label className="label">Tapıntı başlığı <span className="req">*</span></label>
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="məs: HS 8517.12 — bəyan dəyəri bazar qiymətindən aşağıdır" />
       </div>
-      <div className="form-group">
-        <label className="label">Təsvir</label>
-        <textarea className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-      </div>
-      <div className="form-row cols-3">
+      <div className="form-row cols-2">
         <div className="form-group">
-          <label className="label">Kateqoriya</label>
-          <select className="select" value={category} onChange={(e) => setCategory(e.target.value as any)}>
-            <option value="Aşağı qiymət">Aşağı qiymət</option>
-            <option value="HS kodu səhvi">HS kodu səhvi</option>
-            <option value="Çəki uyğunsuzluğu">Çəki uyğunsuzluğu</option>
-            <option value="Sənəd çatışmır">Sənəd çatışmır</option>
-            <option value="Digər">Digər</option>
+          <label className="label">Pozuntu Növü <span className="req">*</span></label>
+          <select className="select" value={category} onChange={(e) => setCategory(e.target.value as FindingCategory)}>
+            {FINDING_CATEGORIES.map((c) => <option key={c} value={c}>{FINDING_CATEGORY_LABEL[c]}</option>)}
           </select>
         </div>
         <div className="form-group">
           <label className="label">Şiddət</label>
-          <select className="select" value={severity} onChange={(e) => setSeverity(e.target.value as any)}>
+          <select className="select" value={severity} onChange={(e) => setSeverity(e.target.value as FindingSeverity)}>
             <option value="Aşağı">Aşağı</option>
             <option value="Orta">Orta</option>
             <option value="Yüksək">Yüksək</option>
             <option value="Kritik">Kritik</option>
           </select>
         </div>
-        <div className="form-group">
-          <label className="label">Rüsum təsiri (₼)</label>
-          <input className="input" type="number" step="0.01" value={dutyImpact} onChange={(e) => setDutyImpact(Number(e.target.value))} />
+      </div>
+      <div className="form-group">
+        <label className="label">Hüquqi əsas <span className="req">*</span></label>
+        <input className="input" value={legalBasis} onChange={(e) => setLegalBasis(e.target.value)} placeholder="məs: Gömrük Məcəlləsi maddə 159" />
+      </div>
+      <div className="form-group">
+        <label className="label">Təsvir</label>
+        <textarea className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)}
+          placeholder="Faktiki müşahidə, sübut bazası..." />
+      </div>
+      <div className="form-group">
+        <label className="label">Rüsum təsiri (₼)</label>
+        <input className="input" type="number" step="0.01" value={dutyImpact} onChange={(e) => setDutyImpact(Number(e.target.value))} />
+      </div>
+      <div className="checkbox-row">
+        <input id="reqExp" type="checkbox" checked={requestExplanation} onChange={(e) => setRequestExplanation(e.target.checked)} />
+        <label htmlFor="reqExp">Şirkətdən rəsmi izahat tələb et və araşdırma prosesini başlat</label>
+      </div>
+    </Modal>
+  );
+}
+
+function PenaltyModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (data: { reason: string; legalBasis: string; amount: number; currency: string; dueDate: string; comments: string }) => void;
+}) {
+  const [reason, setReason] = React.useState('');
+  const [legalBasis, setLegalBasis] = React.useState('');
+  const [amount, setAmount] = React.useState(Math.round(caseRow.dutyAtRisk));
+  const [currency, setCurrency] = React.useState('AZN');
+  const [dueDate, setDueDate] = React.useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [comments, setComments] = React.useState('');
+  return (
+    <Modal open={true} onClose={onClose} size="lg" title={`Cərimə Tətbiq Et — ${caseRow.id}`}
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn btn-danger" onClick={() => {
+          if (!reason.trim()) { toast.error('Səbəb tələb olunur'); return; }
+          if (!legalBasis.trim()) { toast.error('Hüquqi əsas tələb olunur'); return; }
+          if (!amount || amount <= 0) { toast.error('Cərimə məbləği müsbət olmalıdır'); return; }
+          if (!dueDate) { toast.error('Son ödəniş tarixi tələb olunur'); return; }
+          onSave({ reason: reason.trim(), legalBasis: legalBasis.trim(), amount, currency, dueDate, comments: comments.trim() });
+        }}>Cəriməni Rəsmiləşdir</button>
+      </>}>
+      <div className="banner warning" style={{ marginBottom: 10 }}>
+        <AlertTriangle size={16} />
+        <div className="b-body">
+          <div className="b-title">Diqqət: Cərimə qərarı geri qaytarılması çətin olan rəsmi addımdır</div>
+          <div>Bütün sahələr dəqiq doldurulmalı, hüquqi əsas konkret göstərilməlidir.</div>
         </div>
+      </div>
+      <div className="form-group">
+        <label className="label">Səbəb <span className="req">*</span></label>
+        <textarea className="textarea" rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="məs: Bəyan dəyərinin az göstərilməsi, HS kodunun səhv təsnifi..." />
+      </div>
+      <div className="form-group">
+        <label className="label">Hüquqi əsas <span className="req">*</span></label>
+        <input className="input" value={legalBasis} onChange={(e) => setLegalBasis(e.target.value)} placeholder="məs: Gömrük Məcəlləsi maddə 161.2" />
+      </div>
+      <div className="form-row cols-3">
+        <div className="form-group">
+          <label className="label">Məbləğ <span className="req">*</span></label>
+          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+        </div>
+        <div className="form-group">
+          <label className="label">Valyuta</label>
+          <select className="select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="label">Son ödəniş tarixi <span className="req">*</span></label>
+          <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="label">Şərhlər</label>
+        <textarea className="textarea" rows={2} value={comments} onChange={(e) => setComments(e.target.value)}
+          placeholder="Hesablamanın əsası, hesabat üçün qeydlər..." />
+      </div>
+    </Modal>
+  );
+}
+
+function EscalationModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (data: { level: EscalationLevel; reason: string; details: string }) => void;
+}) {
+  const [level, setLevel] = React.useState<EscalationLevel>('Departament');
+  const [reason, setReason] = React.useState('');
+  const [details, setDetails] = React.useState('');
+  return (
+    <Modal open={true} onClose={onClose} size="lg" title={`Yuxarı Orqana Eskalə Et — ${caseRow.id}`}
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn btn-secondary" onClick={() => {
+          if (!reason.trim()) { toast.error('Səbəb tələb olunur'); return; }
+          onSave({ level, reason: reason.trim(), details: details.trim() });
+        }}>Eskaləsiyanı Rəsmiləşdir</button>
+      </>}>
+      <div className="form-group">
+        <label className="label">Eskaləsiya səviyyəsi <span className="req">*</span></label>
+        <select className="select" value={level} onChange={(e) => setLevel(e.target.value as EscalationLevel)}>
+          {(['Departament', 'BaşDirektor', 'NazirlerKabineti', 'HüquqMühafizə'] as EscalationLevel[]).map((l) =>
+            <option key={l} value={l}>{ESCALATION_LEVEL_LABEL[l]}</option>
+          )}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="label">Səbəb <span className="req">*</span></label>
+        <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="məs: Cinayət təqibi göstəriciləri" />
+      </div>
+      <div className="form-group">
+        <label className="label">Ətraflı izah</label>
+        <textarea className="textarea" rows={3} value={details} onChange={(e) => setDetails(e.target.value)}
+          placeholder="Hansı tapıntılar, sübutlar, əlaqəli işlər..." />
+      </div>
+    </Modal>
+  );
+}
+
+function CloseCaseModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (reason: string) => void;
+}) {
+  const [reason, setReason] = React.useState('');
+  return (
+    <Modal open={true} onClose={onClose} title={`İşi Bağla — ${caseRow.id}`}
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn btn-success" onClick={() => {
+          if (!reason.trim()) { toast.error('Bağlama səbəbi tələb olunur'); return; }
+          onSave(reason.trim());
+        }}>İşi Bağla</button>
+      </>}>
+      <p>İş bağlandıqdan sonra yenidən açıla bilər, lakin hər iki əməliyyat tarixçəyə yazılacaq.</p>
+      <div className="form-group">
+        <label className="label">Bağlama səbəbi <span className="req">*</span></label>
+        <textarea className="textarea" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="məs: Cərimə ödənilib və izahat qənaətbəxşdir" />
+      </div>
+    </Modal>
+  );
+}
+
+function ReopenCaseModal({ caseRow, onClose, onSave }: {
+  caseRow: PCACase; onClose: () => void;
+  onSave: (reason: string) => void;
+}) {
+  const [reason, setReason] = React.useState('');
+  return (
+    <Modal open={true} onClose={onClose} title={`İşi Yenidən Aç — ${caseRow.id}`}
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose}>Ləğv Et</button>
+        <button className="btn btn-warning" onClick={() => {
+          if (!reason.trim()) { toast.error('Yenidən açma səbəbi tələb olunur'); return; }
+          onSave(reason.trim());
+        }}>Yenidən Aç</button>
+      </>}>
+      <div className="banner warning" style={{ marginBottom: 10 }}>
+        <AlertTriangle size={16} />
+        <div className="b-body">
+          <div className="b-title">Yenidən açma əməliyyatı tam audit izi ilə qeydə alınır</div>
+          <div>Açan istifadəçi, tarix və səbəb daimi tarixçəyə yazılır.</div>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="label">Yenidən açma səbəbi <span className="req">*</span></label>
+        <textarea className="textarea" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder="məs: Yeni sübutlar aşkar edilib, izahat dəyişib..." />
       </div>
     </Modal>
   );
@@ -1024,9 +1411,11 @@ function previewable(mime: string): boolean {
 }
 
 function DocumentsTab({ decl, viewerRole, canEdit = false, onEdit }: { decl: any; viewerRole: string; canEdit?: boolean; onEdit?: (id: string) => void }) {
+  void viewerRole; // intentional: every authorised role sees every document.
   const [previewing, setPreviewing] = React.useState<any | null>(null);
-  const visibleDocs = decl.documents.filter((d: any) => !d.visibleTo || d.visibleTo.includes(viewerRole));
-  const hiddenCount = decl.documents.length - visibleDocs.length;
+  // Mandatory access: every audit/customs role sees every document. The legacy
+  // visibleTo filter has been removed because owners cannot hide evidence.
+  const visibleDocs = decl.documents;
 
   const handleDownload = (d: any) => {
     const blob = buildDownloadPayload(d);
@@ -1042,17 +1431,8 @@ function DocumentsTab({ decl, viewerRole, canEdit = false, onEdit }: { decl: any
   return (
     <div className="card">
       <div className="card-body">
-        {hiddenCount > 0 && (
-          <div className="banner info" style={{ marginBottom: 10 }}>
-            <Eye size={16} />
-            <div className="b-body">
-              <div className="b-title">Sizin görmə icazəniz olmayan sənədlər var</div>
-              <div>{hiddenCount} sənəd rolunuza ({viewerRole}) görə gizlədilib.</div>
-            </div>
-          </div>
-        )}
         {visibleDocs.length === 0 ? (
-          <EmptyState title="Sizə görünən sənəd yoxdur" />
+          <EmptyState title="Sənəd əlavə edilməyib" />
         ) : (
           <>
             <div className="text-muted text-sm" style={{ marginBottom: 8 }}>
@@ -1090,11 +1470,6 @@ function DocumentsTab({ decl, viewerRole, canEdit = false, onEdit }: { decl: any
                             <div className="doc-info">
                               {d.fileMime} · {d.fileSizeKB} KB · Yükləndi: {formatDateTime(d.uploadedAt)}
                             </div>
-                            {d.visibleTo && d.visibleTo.length < 5 && (
-                              <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-                                Görünür: {d.visibleTo.join(', ')}
-                              </div>
-                            )}
                             <details style={{ marginTop: 8 }}>
                               <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--brand-700)' }}>
                                 Sahələri göstər ({Object.keys(d.fields ?? {}).length})

@@ -2,11 +2,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
-import { PCAStatusBadge, PCARiskBadge, EmptyState, Pagination, Modal } from '../../components/ui/Primitives';
+import { PCAStatusBadge, PCARiskBadge, EmptyState, Pagination } from '../../components/ui/Primitives';
 import { formatDate, formatCurrency, relativeTime } from '../../lib/utils';
-import { AlertTriangle, ShieldAlert, MoreVertical } from 'lucide-react';
-import { toast } from '../../store/toastStore';
-import type { PCAStatus, PCARiskBand, PCACase } from '../../types';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { PCA_STATUS_LABEL, ANOMALY_PATTERN_LABEL } from '../../lib/i18n';
+import type { PCAStatus, PCARiskBand } from '../../types';
 
 export function PCADashboard() {
   const navigate = useNavigate();
@@ -14,9 +14,6 @@ export function PCADashboard() {
   const cases = useDataStore((s) => s.pcaCases);
   const anomalies = useDataStore((s) => s.pcaAnomalies);
   const logPCAView = useDataStore((s) => s.logPCAView);
-  const setPCACaseStatus = useDataStore((s) => s.setPCACaseStatus);
-  const declarations = useDataStore((s) => s.declarations);
-  const [caseInWorkflow, setCaseInWorkflow] = React.useState<PCACase | null>(null);
 
   const [search, setSearch] = React.useState('');
   const [riskFilter, setRiskFilter] = React.useState<string>('');
@@ -81,47 +78,47 @@ export function PCADashboard() {
     <div>
       <div className="section-header">
         <div>
-          <h1>PCA — Buraxılış Sonrası Yoxlama Sistemi</h1>
-          <p className="text-muted">Təsdiqlənmiş sənədlərin audit və risk idarəetmə sistemi</p>
+          <h1>PCA — Buraxılış Sonrası Audit Sistemi</h1>
+          <p className="text-muted">Təsdiqlənmiş gömrük bəyannamələrinin audit və risk idarəetmə sistemi</p>
         </div>
       </div>
 
       <div className="kpi-grid">
         <div className="kpi-card blue clickable" onClick={() => navigate('/pca/companies')}>
-          <div className="kpi-label">Ümumi iş</div>
+          <div className="kpi-label">Ümumi Audit İşləri</div>
           <div className="kpi-value">{k.total}</div>
-          <div className="kpi-hint">Bütün PCA işləri</div>
+          <div className="kpi-hint">Bütün audit işləri</div>
         </div>
         <div className="kpi-card red clickable" onClick={() => setRiskFilter('Kritik')}>
-          <div className="kpi-label">Kritik risk</div>
+          <div className="kpi-label">Kritik Risk</div>
           <div className="kpi-value">{k.critical}</div>
-          <div className="kpi-hint">Təcili nəzərdən keçirilməli</div>
+          <div className="kpi-hint">Təcili nəzərdən keçirilməlidir</div>
         </div>
         <div className="kpi-card orange clickable" onClick={() => setRiskFilter('Yüksək')}>
-          <div className="kpi-label">Yüksək risk</div>
+          <div className="kpi-label">Yüksək Risk</div>
           <div className="kpi-value">{k.high}</div>
           <div className="kpi-hint">Diqqət tələb edir</div>
         </div>
         <div className="kpi-card amber">
-          <div className="kpi-label">Risk altında rüsum</div>
+          <div className="kpi-label">Risk Altında Rüsum</div>
           <div className="kpi-value" style={{ fontSize: 18 }}>{formatCurrency(k.dutyAtRisk)}</div>
-          <div className="kpi-hint">Potensial itki</div>
+          <div className="kpi-hint">Potensial büdcə itkisi</div>
         </div>
         <div className="kpi-card purple">
-          <div className="kpi-label">Ort. risk skoru</div>
+          <div className="kpi-label">Orta Risk Skoru</div>
           <div className="kpi-value">{k.avgScore}</div>
           <div className="kpi-hint">/ 100</div>
         </div>
         <div className="kpi-card green clickable" onClick={() => setStatusFilter('Closed')}>
-          <div className="kpi-label">Bağlı iş</div>
+          <div className="kpi-label">Bağlanmış İşlər</div>
           <div className="kpi-value">{k.closed}</div>
-          <div className="kpi-hint">Tamamlanmış</div>
+          <div className="kpi-hint">Audit prosesi tamamlanıb</div>
         </div>
       </div>
 
       <div className="form-row cols-2 mb-3">
         <div className="card">
-          <div className="card-header"><h3>Risk paylanması</h3></div>
+          <div className="card-header"><h3>Risk Səviyyəsi üzrə Paylanma</h3></div>
           <div className="card-body">
             <div className="risk-bars">
               {(['Aşağı', 'Orta', 'Yüksək', 'Kritik'] as PCARiskBand[]).map((band) => {
@@ -142,7 +139,7 @@ export function PCADashboard() {
         </div>
 
         <div className="card">
-          <div className="card-header"><h3>Top 10 yüksək riskli şirkət</h3></div>
+          <div className="card-header"><h3>Yüksək Riskli İlk 10 Şirkət</h3></div>
           <div className="card-body" style={{ padding: 0 }}>
             {topCompanies.length === 0 ? (
               <EmptyState title="Hələ məlumat yoxdur" />
@@ -151,9 +148,9 @@ export function PCADashboard() {
                 <thead>
                   <tr>
                     <th>Şirkət</th>
-                    <th className="cell-num">İşlər</th>
-                    <th className="cell-num">Ort. skor</th>
-                    <th className="cell-num">Rüsum risk</th>
+                    <th className="cell-num">İşlərin Sayı</th>
+                    <th className="cell-num">Orta Skor</th>
+                    <th className="cell-num">Rüsum Riski</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,13 +172,13 @@ export function PCADashboard() {
       {anomalies.filter((a) => !a.dismissed).length > 0 && (
         <div className="card mb-3">
           <div className="card-header">
-            <h3><AlertTriangle size={16} style={{ verticalAlign: 'middle', color: '#f97316' }} /> Son anomaliyalar</h3>
+            <h3><AlertTriangle size={16} style={{ verticalAlign: 'middle', color: '#f97316' }} /> Aşkarlanmış Anomaliyalar</h3>
             <a href="#" onClick={(e) => { e.preventDefault(); navigate('/pca/anomalies'); }} style={{ marginLeft: 'auto', fontSize: 13 }}>Hamısı →</a>
           </div>
           <div className="card-body">
             {anomalies.filter((a) => !a.dismissed).slice(0, 5).map((a) => (
               <div key={a.id} className="ai-flag warning mb-2">
-                <strong>{a.patternLabel}</strong> — {a.description}
+                <strong>{ANOMALY_PATTERN_LABEL[a.patternCode] ?? a.patternLabel}</strong> — {a.description}
                 <div style={{ fontSize: 11, color: 'var(--n-500)', marginTop: 4 }}>{relativeTime(a.detectedAt)}</div>
               </div>
             ))}
@@ -190,27 +187,27 @@ export function PCADashboard() {
       )}
 
       <div className="card">
-        <div className="card-header"><h3>PCA İş Reyestri</h3></div>
+        <div className="card-header"><h3>Audit İşlərinin Reyestri</h3></div>
         <div className="card-body">
           <div className="filter-bar">
-            <input className="input search" placeholder="Şirkət, ID və ya bəyannamə №..."
+            <input className="input search" placeholder="Şirkət, iş nömrəsi və ya bəyannamə nömrəsi..."
               value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <select className="select" value={riskFilter} onChange={(e) => { setRiskFilter(e.target.value); setPage(1); }}>
-              <option value="">Bütün risklər</option>
-              <option value="Aşağı">Aşağı</option>
-              <option value="Orta">Orta</option>
-              <option value="Yüksək">Yüksək</option>
-              <option value="Kritik">Kritik</option>
+              <option value="">Bütün risk səviyyələri</option>
+              <option value="Aşağı">Aşağı Risk</option>
+              <option value="Orta">Orta Risk</option>
+              <option value="Yüksək">Yüksək Risk</option>
+              <option value="Kritik">Kritik Risk</option>
             </select>
             <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
               <option value="">Bütün statuslar</option>
               {(['Pending', 'In Review', 'Approved', 'Penalty Applied', 'Escalated', 'Closed'] as PCAStatus[]).map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{PCA_STATUS_LABEL[s]}</option>
               ))}
             </select>
             {(search || riskFilter || statusFilter) && (
               <button className="btn btn-secondary btn-sm" onClick={() => { setSearch(''); setRiskFilter(''); setStatusFilter(''); setPage(1); }}>
-                Filtirləri sıfırla
+                Filtirləri Sıfırla
               </button>
             )}
           </div>
@@ -218,8 +215,8 @@ export function PCADashboard() {
           {filtered.length === 0 ? (
             <EmptyState
               icon={<ShieldAlert size={24} />}
-              title={cases.length === 0 ? 'Hazırda PCA üçün uyğun təsdiqlənmiş sənəd yoxdur' : 'Filtrə uyğun nəticə yoxdur'}
-              hint={cases.length === 0 ? 'PCA bəyannamələr təsdiqləndikdən sonra burada görünəcək' : 'Filtrləri dəyişdirib yenidən cəhd edin'}
+              title={cases.length === 0 ? 'Hazırda audit üçün uyğun bəyannamə yoxdur' : 'Filtirlərə uyğun audit işi tapılmadı'}
+              hint={cases.length === 0 ? 'Bəyannamələr təsdiqləndikdən sonra audit işləri burada görünəcək' : 'Filtirləri dəyişdirib yenidən cəhd edin'}
             />
           ) : (
             <>
@@ -227,15 +224,14 @@ export function PCADashboard() {
                 <table className="table table-dense">
                   <thead>
                     <tr>
-                      <th>İş №</th>
+                      <th>İş Nömrəsi</th>
                       <th>Şirkət</th>
-                      <th>Risk dərəcəsi</th>
+                      <th>Risk Səviyyəsi</th>
                       <th className="cell-num">Skor</th>
-                      <th>Status</th>
-                      <th className="cell-num">Rüsum risk ₼</th>
-                      <th>HS kodu</th>
-                      <th>Tarix</th>
-                      <th className="cell-actions">Əməllər</th>
+                      <th>Audit Statusu</th>
+                      <th className="cell-num">Rüsum Riski (₼)</th>
+                      <th>HS Kodu</th>
+                      <th>Qeydiyyat Tarixi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -249,13 +245,6 @@ export function PCADashboard() {
                         <td className="cell-num">{formatCurrency(c.dutyAtRisk)}</td>
                         <td className="mono">{c.hsCode}</td>
                         <td>{formatDate(c.createdAt)}</td>
-                        <td className="cell-actions">
-                          <button className="btn btn-ghost btn-sm"
-                                  onClick={(e) => { e.stopPropagation(); setCaseInWorkflow(c); }}
-                                  title="İş statusunu dəyişdir">
-                            <MoreVertical size={14} />
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -266,49 +255,6 @@ export function PCADashboard() {
           )}
         </div>
       </div>
-
-      {caseInWorkflow && (
-        <CaseStatusModal
-          caseRow={caseInWorkflow}
-          onClose={() => setCaseInWorkflow(null)}
-          onSave={(status, note) => {
-            setPCACaseStatus(caseInWorkflow.id, status, user.id, note);
-            toast.success('İş statusu yeniləndi');
-            setCaseInWorkflow(null);
-          }}
-        />
-      )}
     </div>
-  );
-}
-
-function CaseStatusModal({ caseRow, onClose, onSave }: {
-  caseRow: PCACase;
-  onClose: () => void;
-  onSave: (s: PCAStatus, note?: string) => void;
-}) {
-  const [status, setStatus] = React.useState<PCAStatus>(caseRow.status);
-  const [note, setNote] = React.useState('');
-  const options: PCAStatus[] = ['Pending', 'In Review', 'Approved', 'Penalty Applied', 'Escalated', 'Closed'];
-  return (
-    <Modal open={true} onClose={onClose} title={`İş statusu: ${caseRow.id}`}
-      footer={
-        <>
-          <button className="btn btn-secondary" onClick={onClose}>Ləğv et</button>
-          <button className="btn" onClick={() => onSave(status, note.trim() || undefined)}>Yadda saxla</button>
-        </>
-      }>
-      <p className="text-muted">{caseRow.companyName} · skor: {caseRow.riskScore}</p>
-      <div className="form-group">
-        <label className="label">Yeni status</label>
-        <select className="select" value={status} onChange={(e) => setStatus(e.target.value as PCAStatus)}>
-          {options.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </div>
-      <div className="form-group">
-        <label className="label">Qeyd (ixtiyari)</label>
-        <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Qərarın səbəbi, izaha bağlanan tapıntılar..." />
-      </div>
-    </Modal>
   );
 }

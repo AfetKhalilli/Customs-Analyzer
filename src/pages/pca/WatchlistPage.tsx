@@ -38,7 +38,7 @@ export function WatchlistPage() {
       <div className="section-header">
         <div>
           <h1>İzləmə Siyahısı</h1>
-          <p className="text-muted">Sizin diqqətdə saxladığınız şirkətlər</p>
+          <p className="text-muted">Auditor tərəfindən diqqətdə saxlanılan şirkətlər</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export function WatchlistPage() {
             <EmptyState
               icon={<Bookmark size={24} />}
               title="İzləmə siyahısı boşdur"
-              hint="Şirkət səhifəsində “İzlə” düyməsi ilə bura əlavə edin"
+              hint='Şirkət profili səhifəsindən "İzləmə Siyahısına Əlavə Et" düyməsi ilə əlavə edin'
             />
           ) : (
             <div className="table-wrap">
@@ -56,9 +56,9 @@ export function WatchlistPage() {
                 <thead>
                   <tr>
                     <th>Şirkət</th>
-                    <th className="cell-num">İşlər</th>
-                    <th className="cell-num">Ort. risk</th>
-                    <th className="cell-num">Rüsum risk</th>
+                    <th className="cell-num">Audit İşləri</th>
+                    <th className="cell-num">Orta Risk Skoru</th>
+                    <th className="cell-num">Risk Altında Rüsum</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -71,7 +71,7 @@ export function WatchlistPage() {
                       <td className="cell-num">{formatCurrency(r.duty)}</td>
                       <td className="cell-actions">
                         <button className="btn btn-ghost btn-sm" onClick={(e) => handleRemove(r.id, e)}>
-                          Sil
+                          Siyahıdan Çıxart
                         </button>
                       </td>
                     </tr>

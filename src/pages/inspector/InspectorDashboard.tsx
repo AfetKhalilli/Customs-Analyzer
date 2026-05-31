@@ -4,6 +4,7 @@ import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { StatusBadge, RiskBadge, ChannelPill, EmptyState } from '../../components/ui/Primitives';
 import { formatDate, formatDateTime, relativeTime } from '../../lib/utils';
+import { formatInspectionDeadline } from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function InspectorDashboard() {
@@ -32,6 +33,14 @@ export function InspectorDashboard() {
     return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
   });
 
+  // Inspection deadlines: count overdue and near-deadline (≤24h)
+  const overdueCount = active.filter((d) => d.inspectionDeadline && formatInspectionDeadline(d.inspectionDeadline).overdue).length;
+  const dueSoonCount = active.filter((d) => {
+    if (!d.inspectionDeadline) return false;
+    const di = formatInspectionDeadline(d.inspectionDeadline);
+    return !di.overdue && di.hours >= 0 && di.hours <= 24;
+  }).length;
+
   return (
     <div>
       <h1>Müfəttiş İdarə Paneli</h1>
@@ -39,22 +48,32 @@ export function InspectorDashboard() {
 
       <div className="kpi-grid">
         <div className="kpi-card blue clickable" onClick={() => navigate('/declarations')}>
-          <div className="kpi-label">Aktiv işlər</div>
+          <div className="kpi-label">Aktiv Audit İşləri</div>
           <div className="kpi-value">{active.length}</div>
           <div className="kpi-hint">Davam edən bəyannamələr</div>
         </div>
         <div className="kpi-card amber clickable" onClick={() => navigate('/declarations?status=Yüklənib')}>
-          <div className="kpi-label">Götürmə gözləyir</div>
+          <div className="kpi-label">Yoxlamaya Götürülməyib</div>
           <div className="kpi-value">{pendingPickup.length}</div>
-          <div className="kpi-hint">Yoxlamağa başlanmayıb</div>
+          <div className="kpi-hint">Audit başlanmalıdır</div>
+        </div>
+        <div className="kpi-card red">
+          <div className="kpi-label">Müddəti Keçmiş</div>
+          <div className="kpi-value">{overdueCount}</div>
+          <div className="kpi-hint">2 iş günü tamamlanıb</div>
+        </div>
+        <div className="kpi-card orange">
+          <div className="kpi-label">Müddət Bitir (24 saat)</div>
+          <div className="kpi-value">{dueSoonCount}</div>
+          <div className="kpi-hint">Yaxınlaşan deadline</div>
         </div>
         <div className="kpi-card orange clickable" onClick={() => navigate('/declarations?status=Düzəliş Tələb Olunur')}>
-          <div className="kpi-label">Düzəliş gözləyir</div>
+          <div className="kpi-label">Düzəliş Gözləyir</div>
           <div className="kpi-value">{awaiting.length}</div>
           <div className="kpi-hint">İstifadəçidən cavab</div>
         </div>
         <div className="kpi-card green clickable" onClick={() => navigate('/declarations?status=Tamamlanmış')}>
-          <div className="kpi-label">Bu gün tamamlanıb</div>
+          <div className="kpi-label">Bu Gün Bağlanıb</div>
           <div className="kpi-value">{completedToday.length}</div>
           <div className="kpi-hint">Son 24 saat</div>
         </div>
@@ -62,9 +81,9 @@ export function InspectorDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div className="card">
-          <div className="card-header"><h3>Mənə təyin olunmuş bəyannamələr</h3></div>
+          <div className="card-header"><h3>Mənə Təyin Olunmuş Bəyannamələr</h3></div>
           <div className="card-body" style={{ padding: 0 }}>
-            {sorted.length === 0 ? <EmptyState title="Aktiv iş yoxdur" hint="Hal-hazırda sizə təyin olunmuş aktiv bəyannamə yoxdur" /> : (
+            {sorted.length === 0 ? <EmptyState title="Aktiv audit işi yoxdur" hint="Hal-hazırda sizə təyin olunmuş aktiv bəyannamə yoxdur" /> : (
               <div className="table-wrap" style={{ border: 'none' }}>
                 <table className="table">
                   <thead>
@@ -72,24 +91,35 @@ export function InspectorDashboard() {
                       <th>ID</th>
                       <th>Sahib</th>
                       <th>Növ</th>
-                      <th>Status</th>
+                      <th>Audit Statusu</th>
                       <th>Risk</th>
-                      <th>Kanal</th>
-                      <th>Tarix</th>
+                      <th>Dəhliz</th>
+                      <th>Yoxlama Müddəti</th>
+                      <th>Yüklənmə</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sorted.map((d) => (
-                      <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
-                        <td className="cell-id">{d.id.slice(-10)}</td>
-                        <td>{d.ownerDisplayName}</td>
-                        <td>{d.kind}</td>
-                        <td><StatusBadge status={d.status} /></td>
-                        <td><RiskBadge level={d.ai.riskLevel} score={d.ai.score} /></td>
-                        <td><ChannelPill channel={d.ai.selectivityChannel} /></td>
-                        <td>{relativeTime(d.uploadedAt)}</td>
-                      </tr>
-                    ))}
+                    {sorted.map((d) => {
+                      const di = d.inspectionDeadline ? formatInspectionDeadline(d.inspectionDeadline) : null;
+                      return (
+                        <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
+                          <td className="cell-id">{d.id.slice(-10)}</td>
+                          <td>{d.ownerDisplayName}</td>
+                          <td>{d.kind}</td>
+                          <td><StatusBadge status={d.status} /></td>
+                          <td><RiskBadge level={d.ai.riskLevel} score={d.ai.score} /></td>
+                          <td><ChannelPill channel={d.ai.selectivityChannel} /></td>
+                          <td>
+                            {di ? (
+                              <span style={{ color: di.overdue ? '#991b1b' : di.hours <= 24 ? '#9a3412' : 'var(--n-700)', fontWeight: di.overdue ? 600 : 400 }}>
+                                {di.label}
+                              </span>
+                            ) : <span className="text-muted">—</span>}
+                          </td>
+                          <td>{relativeTime(d.uploadedAt)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -98,19 +128,24 @@ export function InspectorDashboard() {
         </div>
 
         <div className="card">
-          <div className="card-header"><h3>Bu həftə statistika</h3></div>
+          <div className="card-header"><h3>Bu Həftəki Statistika</h3></div>
           <div className="card-body">
             <div style={{ marginBottom: 14 }}>
-              <small className="text-muted">Tamamlanan</small>
+              <small className="text-muted">Tamamlanan Audit Sayı</small>
               <div className="font-bold text-lg">{thisWeekCompleted.length}</div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <small className="text-muted">Təsdiq nisbəti</small>
+              <small className="text-muted">Təsdiq Nisbəti</small>
               <div className="font-bold text-lg">{approvalRate}%</div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <small className="text-muted">Orta dövr</small>
+              <small className="text-muted">Orta Audit Dövrü</small>
               <div className="font-bold text-lg">{avgCycleHours} saat</div>
+            </div>
+            <div style={{ marginBottom: 14, padding: 8, background: 'var(--n-50)', borderRadius: 6 }}>
+              <small className="text-muted">Maksimum Yoxlama Müddəti</small>
+              <div className="font-bold text-lg">2 iş günü</div>
+              <div className="text-muted text-sm">Audit başlandıqda son tarix avtomatik hesablanır</div>
             </div>
           </div>
         </div>

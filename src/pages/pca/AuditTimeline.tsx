@@ -4,6 +4,7 @@ import { useDataStore } from '../../store/dataStore';
 import { EmptyState } from '../../components/ui/Primitives';
 import { formatDateTime, groupByDay } from '../../lib/utils';
 import { Activity } from 'lucide-react';
+import { LOG_ACTION_LABEL } from '../../lib/i18n';
 
 export function AuditTimeline() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export function AuditTimeline() {
       <div className="section-header">
         <div>
           <h1>Audit Tarixçəsi</h1>
-          <p className="text-muted">PCA ilə bağlı bütün fəaliyyətlər</p>
+          <p className="text-muted">PCA ilə bağlı bütün fəaliyyətlərin xronoloji izi</p>
         </div>
       </div>
 
@@ -34,13 +35,13 @@ export function AuditTimeline() {
         <div className="card-body">
           <div className="filter-bar">
             <select className="select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-              <option value="">Bütün hərəkətlər</option>
-              {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+              <option value="">Bütün əməliyyatlar</option>
+              {actions.map((a) => <option key={a} value={a}>{LOG_ACTION_LABEL[a] ?? a}</option>)}
             </select>
           </div>
 
           {filtered.length === 0 ? (
-            <EmptyState icon={<Activity size={24} />} title="Qeyd yoxdur" />
+            <EmptyState icon={<Activity size={24} />} title="Tarixçə qeydi yoxdur" />
           ) : (
             <div className="timeline">
               {groupByDay(filtered.slice(0, 200)).map((g) => (
@@ -52,7 +53,7 @@ export function AuditTimeline() {
                         <b>{l.actorDisplayName}</b> · {l.description}
                       </div>
                       <div className="ti-meta">
-                        {formatDateTime(l.at)} · {l.action}
+                        {formatDateTime(l.at)} · {LOG_ACTION_LABEL[l.action] ?? l.action}
                         {l.declarationId && (
                           <>
                             {' · '}

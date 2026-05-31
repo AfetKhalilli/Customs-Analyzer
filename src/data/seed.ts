@@ -193,6 +193,7 @@ function makeDoc(typeCode: DocumentTypeCode, group: DocumentGroup, fields: Recor
     uploadedAt: new Date(Date.now() - daysAgo * 86400000).toISOString(),
     fields,
     isComplete: true,
+    // Mandatory visibility — every supervisory role always sees the document.
     visibleTo: ['user', 'inspector', 'departmentHead', 'boss', 'pca'],
   };
 }
