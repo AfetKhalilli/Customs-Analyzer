@@ -82,6 +82,7 @@ export const RISK_RULES: RiskRule[] = [
   { id: 'RULE_CERT_ORIGIN_MM',       code: 'CERT_ORIGIN_MISMATCH', name: 'Sertifikat ↔ mənşə uyğunsuz',       description: 'Mənşə sertifikatındakı ölkə daşıma mənşə ölkəsindən fərqlidir.',           weight: 15, severity: 'warning',  category: 'origin',     active: true },
   { id: 'RULE_ROUTE_MODE_IMP',       code: 'ROUTE_MODE_IMPLAUSIBLE', name: 'Daşıma marşrut/növ uyğunsuz',     description: 'Bu mənşə-təyinat marşrutu üçün bəyan edilən nəqliyyat növü mümkün deyil.',  weight: 12, severity: 'warning',  category: 'shipment',   active: true },
   { id: 'RULE_ROUTE_UNKNOWN',        code: 'ROUTE_UNKNOWN',        name: 'Marşrut məlumat bazasında yoxdur',  description: 'Bu mənşə-təyinat marşrutu üçün plausibility datası tapılmadı.',            weight: 4,  severity: 'info',     category: 'shipment',   active: true },
+  { id: 'RULE_DEPT_HS_MISMATCH',     code: 'DEPT_HS_MISMATCH',     name: 'HS kodu şöbə ilə uyğun deyil',      description: 'HS kodunun kateqoriyası seçilmiş gömrük şöbəsinin yurisdiksiyasından kənardadır (məs: Qida şöbəsi + Kosmetika HS).', weight: 22, severity: 'critical', category: 'reference', active: true },
 ];
 
 export function findRule(code: string): RiskRule | undefined {
@@ -118,3 +119,27 @@ export const SECTOR_DEPARTMENT_MAP: Record<Sector, string[]> = {
   'Aqro-sənaye':      ['Qida'],
   'Tikinti':          ['İnşaat', 'Mebel'],
 };
+
+// ============================================================================
+// Department → allowed HS categories.
+// Each customs department only handles a defined set of HS categories.
+// If a declaration's HS code maps to a category outside this allow-list we
+// flag DEPT_HS_MISMATCH (e.g. "Qida" department + cosmetic HS 3304.99).
+// ============================================================================
+export const DEPARTMENT_HS_CATEGORIES: Record<string, string[]> = {
+  'Qida':         ['Qida və içkilər', 'Kənd təsərrüfatı və heyvandarlıq'],
+  'Tekstil':      ['Tekstil və geyim'],
+  'Elektronika':  ['Elektronika'],
+  'Kimya':        ['Kimya məhsulları', 'Yanacaq və enerji'],
+  'Maşınqayırma': ['Maşın və avadanlıq'],
+  'Tibbi':        ['Tibbi və əczaçılıq'],
+  'Kosmetika':    ['Kosmetika və ətriyyat'],
+  'Mebel':        ['Mebel və ev əşyaları'],
+  'Avtomobil':    ['Avtomobil və nəqliyyat'],
+  'İnşaat':       ['Tikinti materialları'],
+};
+
+export function allowedCategoriesForDepartment(dept?: string): string[] | undefined {
+  if (!dept) return undefined;
+  return DEPARTMENT_HS_CATEGORIES[dept];
+}

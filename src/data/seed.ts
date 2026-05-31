@@ -251,7 +251,7 @@ export function seedDeclarations(users: AppUser[]): Declaration[] {
       unitOfMeasure: 'ədəd', hsCode: s.hs,
     };
 
-    const ai = runAI({ ownerEntityType: owner.entityType, kind: s.kind, documents: docs, shipment, totals });
+    const ai = runAI({ ownerEntityType: owner.entityType, kind: s.kind, department: s.dept, documents: docs, shipment, totals });
 
     const decl: Declaration = {
       id: uid('decl'),

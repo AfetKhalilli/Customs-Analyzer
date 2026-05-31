@@ -5,6 +5,7 @@ import type {
 import { convertToAZN } from './utils';
 import {
   RISK_RULES, DEFAULT_THRESHOLDS, findRule, findCountry, bandForScore,
+  allowedCategoriesForDepartment,
 } from './referenceData';
 import { DOC_REQUIREMENTS, DOCUMENT_TYPES } from './constants';
 import { findRoute } from './shippingRoutes';
@@ -14,6 +15,7 @@ import { bandForHs, classifyUnitPrice } from './pricingReference';
 interface AIInput {
   ownerEntityType?: EntityType;
   kind?: DeclarationKind;
+  department?: string;
   documents?: AttachedDocument[];
   shipment?: Partial<ShipmentInfo>;
   totals?: Partial<DeclarationTotals>;
@@ -74,12 +76,17 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
   }
 
   // ── R3/R4 NO_DOCS / LOW_DOC_COUNT ─────────────────────────────────────────
+  // "Minimum 3 documents" is interpreted as 3 DISTINCT document TYPES
+  // (typeCode). Uploading the same type 3 times passes total count but is
+  // still flagged because it's the same artefact attached repeatedly.
+  // Source of rule: src/lib/referenceData.ts → RULE_LOW_DOC_COUNT, weight 8.
+  const distinctTypes = new Set(docs.map((d) => d.typeCode));
   if (docs.length === 0) {
     fire('NO_DOCS', 'Heç bir sənəd yüklənməyib', 'documents.length = 0');
-  } else if (docs.length < 3) {
+  } else if (distinctTypes.size < 3) {
     fire('LOW_DOC_COUNT',
-      `Yalnız ${docs.length} sənəd mövcuddur (minimum 3 tövsiyə olunur)`,
-      `documents.length = ${docs.length}`);
+      `Yalnız ${distinctTypes.size} fərqli sənəd növü mövcuddur (minimum 3 fərqli növ tövsiyə olunur)`,
+      `distinct(documents.typeCode) = ${distinctTypes.size}; total = ${docs.length}`);
   }
 
   // ── R5 MISSING_CUSTOMS_DOC ────────────────────────────────────────────────
@@ -165,6 +172,19 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
       [`HS_CATALOG:${hs.code}`]);
   }
 
+  // ── R25 DEPT_HS_MISMATCH — HS category must match the customs department.
+  // Example: a Qida (food) declaration declaring HS 3304.99 (cosmetics) fires
+  // this rule. The check is permissive when the department is unknown.
+  if (hs && d.department) {
+    const allowed = allowedCategoriesForDepartment(d.department);
+    if (allowed && allowed.length > 0 && !allowed.includes(hs.category)) {
+      fire('DEPT_HS_MISMATCH',
+        `Şöbə "${d.department}" üçün HS kateqoriyası "${hs.category}" qəbul edilmir`,
+        `Allowed for ${d.department}: ${allowed.join(', ')}; declared HS=${hs.code} (${hs.category})`,
+        [`HS_CATALOG:${hs.code}`, `DEPT:${d.department}`]);
+    }
+  }
+
   // ── R14 HIGH_RISK_COMMODITY ───────────────────────────────────────────────
   if (hs && hs.riskTier === 'high') {
     fire('HIGH_RISK_COMMODITY',
@@ -190,56 +210,109 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
   }
 
   // ── R19 INVOICE_VALUE_MISMATCH / INVOICE_CURRENCY_MISMATCH ────────────────
-  const invoiceDoc = docs.find((x) => x.typeCode === 'INVOICE' || x.typeCode === 'COMMERCIAL_INVOICE');
-  if (invoiceDoc && totals.totalDeclaredValue && totals.currency) {
-    const invAmt = Number(invoiceDoc.fields?.totalAmount);
-    const invCcy = String(invoiceDoc.fields?.currency ?? '');
-    if (invCcy && invCcy !== totals.currency) {
-      fire('INVOICE_CURRENCY_MISMATCH',
-        `Invoys valyutası (${invCcy}) bəyan valyutasından (${totals.currency}) fərqlidir`,
-        `invoice.currency=${invCcy} ≠ totals.currency=${totals.currency}`);
+  // Comparison logic for ALL uploaded invoices (not just the first):
+  //   • Σ invoice.totalAmount (converted to AZN) is compared with totals.totalDeclaredValue
+  //   • If aggregate diff > 5% → INVOICE_VALUE_MISMATCH fires
+  //   • Any invoice whose currency ≠ totals.currency → INVOICE_CURRENCY_MISMATCH fires
+  // This is the single canonical "high/low/equal" comparison for invoice ↔ totals.
+  // It feeds: AI risk score (via rule weights in referenceData.ts), the
+  // RED-channel critical override, the validateDeclaration gate (cannot
+  // approve a mismatched declaration), and the PCA findings page.
+  const invoiceDocs = docs.filter((x) => x.typeCode === 'INVOICE' || x.typeCode === 'COMMERCIAL_INVOICE');
+  if (invoiceDocs.length > 0 && totals.totalDeclaredValue && totals.currency) {
+    let invoiceSumAZN = 0;
+    const ccyMismatches: string[] = [];
+    for (const inv of invoiceDocs) {
+      const invAmt = Number(inv.fields?.totalAmount);
+      const invCcy = String(inv.fields?.currency ?? '');
+      if (invCcy && invCcy !== totals.currency) ccyMismatches.push(`${inv.fileName}:${invCcy}`);
+      if (!isNaN(invAmt) && invAmt > 0) {
+        invoiceSumAZN += convertToAZN(invAmt, invCcy || totals.currency);
+      }
     }
-    if (!isNaN(invAmt) && invAmt > 0) {
-      const invAZN = convertToAZN(invAmt, invCcy || totals.currency);
+    if (ccyMismatches.length > 0) {
+      fire('INVOICE_CURRENCY_MISMATCH',
+        `Invoys valyutası bəyan valyutasından (${totals.currency}) fərqlidir: ${ccyMismatches.join(', ')}`,
+        `mismatched=${ccyMismatches.length}/${invoiceDocs.length}`);
+    }
+    if (invoiceSumAZN > 0) {
       const decAZN = convertToAZN(totals.totalDeclaredValue, totals.currency);
-      const diff = Math.abs(invAZN - decAZN) / Math.max(invAZN, decAZN);
+      const diff = Math.abs(invoiceSumAZN - decAZN) / Math.max(invoiceSumAZN, decAZN);
+      const verdict = invoiceSumAZN > decAZN ? 'higher' : invoiceSumAZN < decAZN ? 'lower' : 'equal';
       if (diff > 0.05) {
         fire('INVOICE_VALUE_MISMATCH',
-          `Invoys məbləği bəyan dəyərindən ${(diff * 100).toFixed(1)}% kənardır`,
-          `invoice ${invAZN.toFixed(0)} ₼ vs declared ${decAZN.toFixed(0)} ₼ (>5%)`);
+          `Invoyslərin cəmi (${invoiceSumAZN.toFixed(0)} ₼) bəyan dəyərindən (${decAZN.toFixed(0)} ₼) ${(diff * 100).toFixed(1)}% ${verdict === 'higher' ? 'yüksək' : 'aşağı'}dır`,
+          `invoices(${invoiceDocs.length})=${invoiceSumAZN.toFixed(0)} ₼ vs declared=${decAZN.toFixed(0)} ₼ (>5% ${verdict})`);
       }
     }
   }
+  // keep a "first" reference for legacy cross-checks below
+  const invoiceDoc = invoiceDocs[0];
 
-  // ── R20 PACKING_LIST cross-checks ─────────────────────────────────────────
-  const packingDoc = docs.find((x) => x.typeCode === 'PACKING_LIST');
-  if (packingDoc && Array.isArray(packingDoc.fields?.items)) {
-    const items: Array<{ quantity?: number; weight?: number }> = packingDoc.fields.items;
-    const qtySum = items.reduce((a, it) => a + (Number(it.quantity) || 0), 0);
-    const wtSum  = items.reduce((a, it) => a + (Number(it.weight) || 0), 0);
+  // ── R20 PACKING_LIST cross-checks (aggregate over ALL packing lists) ──────
+  const packingDocs = docs.filter((x) => x.typeCode === 'PACKING_LIST');
+  if (packingDocs.length > 0) {
+    let qtySum = 0;
+    let wtSum = 0;
+    let totalRows = 0;
+    for (const pd of packingDocs) {
+      const items: Array<{ quantity?: number; weight?: number }> = Array.isArray(pd.fields?.items) ? pd.fields.items : [];
+      qtySum += items.reduce((a, it) => a + (Number(it.quantity) || 0), 0);
+      wtSum  += items.reduce((a, it) => a + (Number(it.weight) || 0), 0);
+      totalRows += items.length;
+    }
     if (totals.totalQuantity && qtySum > 0 && Math.abs(qtySum - totals.totalQuantity) / Math.max(qtySum, totals.totalQuantity) > 0.01) {
       fire('PACKING_QTY_MISMATCH',
-        `Qablaşdırma miqdarı (${qtySum}) ümumi miqdara (${totals.totalQuantity}) uyğun deyil`,
+        `Qablaşdırma miqdarı cəmi (${qtySum}, ${packingDocs.length} siyahıdan) ümumi miqdara (${totals.totalQuantity}) uyğun deyil`,
         `Σ packing.qty=${qtySum} ≠ totals.totalQuantity=${totals.totalQuantity}`);
     }
     if (shipment.netWeightKg && wtSum > 0 && Math.abs(wtSum - shipment.netWeightKg) / Math.max(wtSum, shipment.netWeightKg) > 0.10) {
       fire('PACKING_WEIGHT_MISMATCH',
-        `Qablaşdırma çəkisi (${wtSum} kq) netto çəkidən (${shipment.netWeightKg} kq) >10% fərqlidir`,
+        `Qablaşdırma çəkisi cəmi (${wtSum} kq, ${packingDocs.length} siyahıdan) netto çəkidən (${shipment.netWeightKg} kq) >10% fərqlidir`,
         `Σ packing.weight=${wtSum} vs shipment.netWeightKg=${shipment.netWeightKg}`);
     }
-    if (shipment.packageCount && items.length > 0 && items.length !== shipment.packageCount) {
+    if (shipment.packageCount && totalRows > 0 && totalRows !== shipment.packageCount) {
       fire('PACKING_PKGCOUNT_MISMATCH',
-        `Qablaşdırma sətirlərinin sayı (${items.length}) bağlama sayına (${shipment.packageCount}) uyğun deyil`,
-        `packing.items.length=${items.length} ≠ shipment.packageCount=${shipment.packageCount}`);
+        `Qablaşdırma sətirlərinin cəmi sayı (${totalRows}, ${packingDocs.length} siyahıdan) bağlama sayına (${shipment.packageCount}) uyğun deyil`,
+        `Σ packing.items.length=${totalRows} ≠ shipment.packageCount=${shipment.packageCount}`);
     }
   }
 
-  // ── R21 HS_CODE_INTRA_MISMATCH (customs declaration vs totals) ────────────
-  const customsDoc = docs.find((x) => x.typeCode === 'CUSTOMS_DECLARATION');
-  if (customsDoc && totals.hsCode && customsDoc.fields?.hsCode && customsDoc.fields.hsCode !== totals.hsCode) {
-    fire('HS_CODE_INTRA_MISMATCH',
-      `Gömrük bəyannaməsi HS (${customsDoc.fields.hsCode}) ≠ ümumi HS (${totals.hsCode})`,
-      `customs_decl.hsCode=${customsDoc.fields.hsCode} ≠ totals.hsCode=${totals.hsCode}`);
+  // ── R21 HS_CODE_INTRA_MISMATCH (ALL customs declarations vs totals) ───────
+  // Previous behaviour considered only the first CUSTOMS_DECLARATION doc, so
+  // a user could mask a bad HS by attaching a correct one first. We now scan
+  // every customs declaration and also cross-check them against each other.
+  const customsDocs = docs.filter((x) => x.typeCode === 'CUSTOMS_DECLARATION');
+  if (customsDocs.length > 0 && totals.hsCode) {
+    const totalsHsNorm = canonicalizeHs(totals.hsCode) ?? totals.hsCode;
+    for (const cd of customsDocs) {
+      const cdHs = cd.fields?.hsCode;
+      if (cdHs) {
+        const cdHsNorm = canonicalizeHs(String(cdHs)) ?? String(cdHs);
+        if (cdHsNorm !== totalsHsNorm) {
+          fire('HS_CODE_INTRA_MISMATCH',
+            `Gömrük bəyannaməsi (${cd.fileName}) HS=${cdHs} ≠ ümumi HS=${totals.hsCode}`,
+            `customs_decl.${cd.id}.hsCode=${cdHs} ≠ totals.hsCode=${totals.hsCode}`);
+        }
+      }
+    }
+  }
+  // Cross-check between multiple customs declarations themselves
+  if (customsDocs.length > 1) {
+    const seen = new Map<string, string>();
+    for (const cd of customsDocs) {
+      const cdHs = cd.fields?.hsCode;
+      if (!cdHs) continue;
+      const norm = canonicalizeHs(String(cdHs)) ?? String(cdHs);
+      if (seen.size && !seen.has(norm)) {
+        const firstKey = Array.from(seen.keys())[0];
+        fire('HS_CODE_INTRA_MISMATCH',
+          `Birdən çox gömrük bəyannaməsində fərqli HS kodları aşkar edildi: ${firstKey} vs ${norm}`,
+          `customs_decls=${customsDocs.length}; HSlər: ${Array.from(seen.values()).concat(cd.fileName).join(', ')}`);
+        break;
+      }
+      seen.set(norm, cd.fileName);
+    }
   }
 
   // ── R22 BUYER/SELLER fuzzy match against consignor/consignee ──────────────

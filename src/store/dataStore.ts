@@ -47,6 +47,9 @@ interface DataState {
   // declarations
   addDeclaration: (d: Omit<Declaration, 'id' | 'uploadedAt' | 'ai' | 'aiHistory' | 'assignedInspectorId' | 'status' | 'comments'> & { ownerId: string; ownerEntityType: 'individual' | 'company'; ownerDisplayName: string; }) => string;
   updateDeclaration: (id: string, patch: Partial<Declaration>) => void;
+  // Owner edits a single document on a declaration that's awaiting corrections.
+  // Returns errors instead of throwing so the UI can render them inline.
+  replaceDeclarationDocument: (declId: string, docId: string, nextDoc: import('../types').AttachedDocument, actor: AppUser) => { ok: boolean; error?: string };
   resubmitDeclaration: (id: string, actor: AppUser) => void;
   changeStatus: (id: string, next: DeclarationStatus, actor: AppUser, opts?: { rejectReason?: string; correctionSummary?: string; correctionDetails?: string }) => { ok: boolean; error?: string };
   assignInspector: (declId: string, inspectorId: string, actor: AppUser) => void;
@@ -139,6 +142,29 @@ export const useDataStore = create<DataState>()(
         const u = get().users.find((x) => x.id === id);
         if (!u) return { ok: false, error: 'İstifadəçi tapılmadı' };
         if (u.role === 'boss') return { ok: false, error: 'Baş direktor silinə bilməz' };
+
+        // ── Supervisory-role protection ────────────────────────────────────
+        // Audit/compliance separation-of-duties: the audited entities (boss,
+        // departmentHead) cannot remove the roles that audit them (pca). Only
+        // PCA users themselves may delete PCA accounts, and even then must
+        // leave at least one active PCA on the system. This eliminates the
+        // attack where a non-compliant boss disables their own auditor.
+        const actor = actorId ? get().users.find((x) => x.id === actorId) : undefined;
+        if (u.role === 'pca' && actor?.role !== 'pca') {
+          return { ok: false, error: 'PCA audit rolu yalnız PCA tərəfindən silinə bilər (audit ayrılığı qaydası)' };
+        }
+        if (u.role === 'pca') {
+          const remainingPCA = get().users.filter((x) => x.role === 'pca' && x.id !== id && x.status === 'active').length;
+          if (remainingPCA < 1) {
+            return { ok: false, error: 'Sistemdə ən azı bir aktiv PCA auditoru qalmalıdır — silmə əməliyyatı qadağandır' };
+          }
+        }
+        // Department Head likewise cannot be deleted by another department's
+        // head or by inspectors (only the Boss can manage org structure).
+        if (u.role === 'departmentHead' && actor?.role !== 'boss') {
+          return { ok: false, error: 'Şöbə Rəisini yalnız Baş Direktor silə bilər' };
+        }
+
         const hasActiveAssignments = get().declarations.some(
           (d) => d.assignedInspectorId === id && !['Tamamlanmış', 'Rədd'].includes(d.status),
         );
@@ -220,6 +246,16 @@ export const useDataStore = create<DataState>()(
       },
 
       addDeclaration: (d) => {
+        // Audit invariant: every document MUST be visible to supervisory roles
+        // regardless of what came in from the wizard / API. Owners cannot hide
+        // evidence from inspectors, dept-heads, boss, or PCA.
+        const MUST_SEE = ['user', 'inspector', 'departmentHead', 'boss', 'pca'] as const;
+        const sanitizedDocs = (d.documents ?? []).map((doc) => ({
+          ...doc,
+          visibleTo: Array.from(new Set([...(doc.visibleTo ?? []), ...MUST_SEE])),
+        }));
+        d = { ...d, documents: sanitizedDocs };
+
         // ── HARD GATE: no payload reaches persistence without passing the
         // centralized validator. This kills devtools / API-bypass writes.
         const v = validateDeclaration({
@@ -330,6 +366,27 @@ export const useDataStore = create<DataState>()(
         set((s) => ({
           declarations: s.declarations.map((d) => d.id === id ? next : d),
         }));
+      },
+
+      replaceDeclarationDocument: (declId, docId, nextDoc, actor) => {
+        const d = get().declarations.find((x) => x.id === declId);
+        if (!d) return { ok: false, error: 'Bəyannamə tapılmadı' };
+        if (d.ownerId !== actor.id) return { ok: false, error: 'Yalnız bəyannamə sahibi sənədi redaktə edə bilər' };
+        if (d.status !== 'Düzəliş Tələb Olunur') {
+          return { ok: false, error: 'Sənədi yalnız "Düzəliş Tələb Olunur" statusunda dəyişdirmək olar' };
+        }
+        const exists = d.documents.some((x) => x.id === docId);
+        if (!exists) return { ok: false, error: 'Sənəd tapılmadı' };
+        const nextDocs = d.documents.map((x) => x.id === docId ? { ...nextDoc, id: docId } : x);
+        set((s) => ({
+          declarations: s.declarations.map((dd) => dd.id === declId ? { ...dd, documents: nextDocs } : dd),
+        }));
+        get().addLog({
+          declarationId: declId, actorId: actor.id, actorRole: actor.role,
+          actorDisplayName: dispName(actor), action: 'COMMENT',
+          description: `Sənəd düzəlişi: ${nextDoc.fileName}`,
+        });
+        return { ok: true };
       },
 
       resubmitDeclaration: (id, actor) => {

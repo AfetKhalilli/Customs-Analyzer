@@ -9,6 +9,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { EntitySelectorPage } from './pages/auth/EntitySelectorPage';
 import { IndividualRegisterPage } from './pages/auth/IndividualRegisterPage';
 import { CompanyRegisterPage } from './pages/auth/CompanyRegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 
 import { DashboardSwitch } from './pages/DashboardSwitch';
 import { DeclarationsList } from './pages/shared/DeclarationsList';
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/register" element={<PublicOnly><EntitySelectorPage /></PublicOnly>} />
         <Route path="/register/individual" element={<PublicOnly><IndividualRegisterPage /></PublicOnly>} />
         <Route path="/register/company" element={<PublicOnly><CompanyRegisterPage /></PublicOnly>} />
+        <Route path="/forgot-password" element={<PublicOnly><ForgotPasswordPage /></PublicOnly>} />
 
         <Route path="/dashboard" element={<RequireAuth><DashboardSwitch /></RequireAuth>} />
         <Route path="/declaration/new" element={<RequireAuth roles={['user']}><DeclarationWizard /></RequireAuth>} />

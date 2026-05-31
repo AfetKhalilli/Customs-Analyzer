@@ -234,6 +234,7 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
     return runAI({
       ownerEntityType,
       kind: state.step1.kind,
+      department: state.step1.department,
       documents: state.step2,
       shipment: state.step3 ? { ...state.step3 } : undefined,
       totals: { ...values },
@@ -664,22 +665,7 @@ function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
     );
   }
   if (typeCode === 'SHIPPING_DOCUMENT') {
-    return (
-      <>
-        <div className="form-row cols-2">
-          <SelectField name="shippingDocType" label="Daşıma sənədi növü" required options={SHIPPING_DOC_TYPES} />
-          <TextField name="shippingDocNumber" label="Sənəd №" required />
-        </div>
-        <div className="form-row cols-2">
-          <TextField name="carrierName" label="Daşıyıcının adı" required />
-          <TextField name="vehicleNumber" label="Nəqliyyat vasitəsi №" />
-        </div>
-        <div className="form-row cols-2">
-          <DateField name="loadingDate" label="Yükləmə tarixi" required />
-          <DateField name="estimatedArrival" label="Çatma tarixi" />
-        </div>
-      </>
-    );
+    return <ShippingDocumentFields />;
   }
   if (typeCode === 'CERTIFICATE') {
     return (
@@ -698,6 +684,46 @@ function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
     );
   }
   return null;
+}
+
+// SHIPPING_DOCUMENT — Çatma tarixi (estimatedArrival) cannot be earlier than
+// Yükləmə tarixi (loadingDate). We surface this as a live form error so users
+// see the failure before they hit Save; the same rule lives in validation.ts.
+function ShippingDocumentFields() {
+  const { watch, setError, clearErrors, formState: { errors } } = useFormContext();
+  const loadingDate = watch('loadingDate');
+  const estimatedArrival = watch('estimatedArrival');
+
+  React.useEffect(() => {
+    if (loadingDate && estimatedArrival) {
+      if (new Date(estimatedArrival) < new Date(loadingDate)) {
+        setError('estimatedArrival', {
+          type: 'manual',
+          message: `Çatma tarixi Yükləmə tarixindən (${loadingDate}) əvvəl ola bilməz`,
+        });
+      } else if ((errors as any)?.estimatedArrival?.type === 'manual') {
+        clearErrors('estimatedArrival');
+      }
+    }
+  }, [loadingDate, estimatedArrival, setError, clearErrors, errors]);
+
+  return (
+    <>
+      <div className="form-row cols-2">
+        <SelectField name="shippingDocType" label="Daşıma sənədi növü" required options={SHIPPING_DOC_TYPES} />
+        <TextField name="shippingDocNumber" label="Sənəd №" required />
+      </div>
+      <div className="form-row cols-2">
+        <TextField name="carrierName" label="Daşıyıcının adı" required />
+        <TextField name="vehicleNumber" label="Nəqliyyat vasitəsi №" />
+      </div>
+      <div className="form-row cols-2">
+        <DateField name="loadingDate" label="Yükləmə tarixi" required />
+        <DateField name="estimatedArrival" label="Çatma tarixi" min={loadingDate || undefined}
+          hint="Yükləmə tarixindən sonra olmalıdır" />
+      </div>
+    </>
+  );
 }
 
 function PackingListFields() {
@@ -761,26 +787,39 @@ const VISIBILITY_OPTIONS: { value: Role; label: string }[] = [
   { value: 'pca',            label: 'PCA Auditor' },
 ];
 
+// Audit-mandated visibility: customs/PCA/audit roles MUST always have access
+// to documents the user uploaded — owners cannot hide evidence from inspectors,
+// department heads, the Boss, or PCA. The picker still exists for cosmetic
+// disclosure preferences (e.g. peer departments) but supervisory roles are
+// pinned on.
+const MANDATORY_VIEWERS: Role[] = ['user', 'inspector', 'departmentHead', 'boss', 'pca'];
+
 function VisibilityPicker() {
   const { setValue, watch } = useFormContext();
-  const cur: Role[] = watch('_visibleTo') ?? ['user', 'inspector', 'departmentHead', 'boss', 'pca'];
-  const toggle = (r: Role) => {
-    const next = cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r];
-    // 'user' (the owner) is always required — they uploaded it
-    if (!next.includes('user')) next.push('user');
-    setValue('_visibleTo', next, { shouldDirty: true });
-  };
+  const cur: Role[] = watch('_visibleTo') ?? [...MANDATORY_VIEWERS];
+  React.useEffect(() => {
+    // self-heal stored visibility if it was previously narrowed before this
+    // policy took effect.
+    const missing = MANDATORY_VIEWERS.filter((r) => !cur.includes(r));
+    if (missing.length > 0) {
+      setValue('_visibleTo', Array.from(new Set([...cur, ...MANDATORY_VIEWERS])), { shouldDirty: false });
+    }
+  }, [cur, setValue]);
+
   return (
     <div className="form-group" style={{ marginTop: 12, padding: 12, background: 'var(--n-50)', borderRadius: 8, border: '1px solid var(--n-200)' }}>
       <label className="label">Bu sənədə kim baxa bilər?</label>
-      <div className="help-text" style={{ marginBottom: 6 }}>Standart: hamı. Yalnız müəyyən rollar üçün məhdudlaşdırmaq olar. Sənəd sahibi (siz) həmişə daxildir.</div>
+      <div className="help-text" style={{ marginBottom: 6 }}>
+        Audit qaydalarına görə bütün gömrük, müfəttiş və PCA rolları sənədi mütləq görür — bu seçimləri söndürmək mümkün deyil.
+      </div>
       <div className="chip-row">
         {VISIBILITY_OPTIONS.map((o) => (
           <button type="button" key={o.value}
             className={`chip ${cur.includes(o.value) ? 'active' : ''}`}
-            onClick={() => toggle(o.value)}
-            disabled={o.value === 'user'}>
-            {o.label}
+            onClick={() => { /* mandatory — no toggle */ }}
+            disabled
+            title="Audit tələbi — dəyişdirilə bilməz">
+            🔒 {o.label}
           </button>
         ))}
       </div>

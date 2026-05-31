@@ -66,9 +66,9 @@ export function LoginPage() {
               <PasswordField name="password" label="Şifrə" required placeholder="Şifrənizi daxil edin" />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 18px' }}>
                 <CheckboxField name="rememberMe" label="Məni xatırla" />
-                <a href="#" onClick={(e) => { e.preventDefault(); toast.info('Şifrə bərpa imkanı demo versiyasında mövcud deyil'); }} style={{ fontSize: 13, fontWeight: 600 }}>
+                <Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 600 }}>
                   Şifrəni unutmusunuz?
-                </a>
+                </Link>
               </div>
               {error && <div className="banner error" style={{ marginBottom: 12 }}>{error}</div>}
               <button type="submit" className="btn btn-block btn-lg">Daxil ol</button>

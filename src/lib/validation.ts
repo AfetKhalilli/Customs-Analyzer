@@ -7,6 +7,8 @@ import {
   MAX_FILE_SIZE_KB, DOC_REQUIREMENTS, DOCUMENT_TYPES,
 } from './constants';
 import { declStep1Schema, declStep3Schema, declStep4Schema } from './schemas';
+import { lookupHs } from './hsCodes';
+import { allowedCategoriesForDepartment } from './referenceData';
 
 // ============================================================================
 // ValidationError — thrown by store gates; carries the full issue list.
@@ -111,6 +113,40 @@ export function validateDocumentFields(doc: AttachedDocument): ValidationResult 
         `${label}: "${f}" boşdur`,
         `documents.${doc.id}.${f}`,
       ));
+    }
+  }
+
+  // Cross-field date sanity:
+  //   SHIPPING_DOCUMENT — estimatedArrival (Çatma tarixi) cannot be earlier
+  //   than loadingDate (Yükləmə tarixi). Both front and back enforce this.
+  if (doc.typeCode === 'SHIPPING_DOCUMENT') {
+    const loading = (doc.fields ?? {}).loadingDate;
+    const arrival = (doc.fields ?? {}).estimatedArrival;
+    if (loading && arrival) {
+      const ld = new Date(loading); const ad = new Date(arrival);
+      if (!isNaN(ld.getTime()) && !isNaN(ad.getTime()) && ad < ld) {
+        errors.push(err(
+          'ARRIVAL_BEFORE_DEPARTURE',
+          `${label}: Çatma tarixi (${arrival}) Yükləmə tarixindən (${loading}) əvvəl ola bilməz`,
+          `documents.${doc.id}.estimatedArrival`,
+        ));
+      }
+    }
+  }
+
+  // CERTIFICATE — expiryDate cannot be earlier than issueDate.
+  if (doc.typeCode === 'CERTIFICATE') {
+    const issue = (doc.fields ?? {}).issueDate;
+    const expiry = (doc.fields ?? {}).expiryDate;
+    if (issue && expiry) {
+      const id = new Date(issue); const ed = new Date(expiry);
+      if (!isNaN(id.getTime()) && !isNaN(ed.getTime()) && ed < id) {
+        errors.push(err(
+          'EXPIRY_BEFORE_ISSUE',
+          `${label}: Bitmə tarixi (${expiry}) Verilmə tarixindən (${issue}) əvvəl ola bilməz`,
+          `documents.${doc.id}.expiryDate`,
+        ));
+      }
     }
   }
 
@@ -219,6 +255,23 @@ export function validateDeclaration(input: FullDeclarationInput): ValidationResu
   if (input.shipment && input.shipment.grossWeightKg && input.shipment.netWeightKg
       && input.shipment.netWeightKg > input.shipment.grossWeightKg) {
     errors.push(err('NET_GT_GROSS', 'Netto çəki Brutto çəkidən böyük ola bilməz', 'shipment.netWeightKg'));
+  }
+
+  // ── 5. HS category must match the customs department ─────────────────────
+  // Food declaration must not declare a cosmetics HS code, and so on.
+  // The reference for allowed categories lives in src/lib/referenceData.ts.
+  if (input.totals?.hsCode && input.department) {
+    const hsRec = lookupHs(input.totals.hsCode);
+    if (hsRec) {
+      const allowed = allowedCategoriesForDepartment(input.department);
+      if (allowed && allowed.length > 0 && !allowed.includes(hsRec.category)) {
+        errors.push(err(
+          'DEPT_HS_MISMATCH',
+          `Şöbə "${input.department}" üçün HS kateqoriyası "${hsRec.category}" qəbul edilmir. İcazəli kateqoriyalar: ${allowed.join(', ')}`,
+          'totals.hsCode',
+        ));
+      }
+    }
   }
 
   return ok(errors, warnings);

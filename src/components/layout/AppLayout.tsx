@@ -45,7 +45,7 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
     { label: 'Şöbələr', to: '/departments', icon: <Building2 size={18} /> },
     { label: 'Müfəttişlər', to: '/inspectors', icon: <Users size={18} /> },
     { section: 'ADMİN', label: 'Əməkdaşlar və Şöbələr', to: '/admin/staff', icon: <UserCog size={18} /> },
-    { label: 'Referans məlumatlar', to: '/admin/reference', icon: <Database size={18} /> },
+    { label: 'Risk və Qayda Reyestri', to: '/admin/reference', icon: <Database size={18} /> },
     { section: 'SİSTEM', label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },

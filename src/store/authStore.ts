@@ -13,6 +13,21 @@ interface AuthState {
   register: (user: AppUser) => { ok: boolean; error?: string };
   changePassword: (current: string, next: string) => { ok: boolean; error?: string };
   updateProfile: (patch: Partial<AppUser>) => void;
+
+  // Forgot-password flow (demo / no email gateway).
+  // 1) requestPasswordReset(identifier, email) verifies the pair and returns a
+  //    short reset token bound to the user. In production this would email a
+  //    link; here we surface it directly to the UI for the demo.
+  // 2) resetPassword(token, newPassword) consumes the token and rewrites the
+  //    password. Tokens are single-use and expire after 30 minutes.
+  requestPasswordReset: (identifier: string, email: string) => { ok: boolean; error?: string; token?: string };
+  resetPassword: (token: string, newPassword: string) => { ok: boolean; error?: string };
+}
+
+interface ResetTicket {
+  userId: string;
+  token: string;
+  expiresAt: number;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -72,7 +87,64 @@ export const useAuthStore = create<AuthState>()(
         const user = useDataStore.getState().users.find((u) => u.id === id);
         if (!user) return { ok: false, error: 'İstifadəçi tapılmadı' };
         if (user.password !== current) return { ok: false, error: 'Cari şifrə yanlışdır' };
+        if (current === next) return { ok: false, error: 'Yeni şifrə cari şifrə ilə eyni olmamalıdır' };
         useDataStore.getState().updateUser(id, { password: next });
+        return { ok: true };
+      },
+
+      requestPasswordReset: (identifier, email) => {
+        const users = useDataStore.getState().users;
+        const id = identifier.trim();
+        const idUpper = id.toUpperCase();
+        const cleanEmail = email.trim().toLowerCase();
+        const user = users.find((u) => {
+          if (u.entityType === 'individual') {
+            return (u as IndividualUser).fin.toUpperCase() === idUpper && u.email.toLowerCase() === cleanEmail;
+          }
+          return (u as CompanyUser).tin === id && u.email.toLowerCase() === cleanEmail;
+        });
+        if (!user) {
+          // Generic message — do not leak which field was wrong (prevents
+          // identifier/email enumeration via the reset endpoint).
+          return { ok: false, error: 'FİN/VÖEN və e-poçt cütü tapılmadı' };
+        }
+        if (user.status === 'suspended') {
+          return { ok: false, error: 'Hesabınız dayandırılıb. Administratora müraciət edin.' };
+        }
+        const token = `RST_${user.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const ticket: ResetTicket = { userId: user.id, token, expiresAt: Date.now() + 30 * 60 * 1000 };
+        try {
+          const all: ResetTicket[] = JSON.parse(sessionStorage.getItem('ca-reset-tickets') || '[]');
+          // drop tickets older than 30 min on every write
+          const fresh = all.filter((t) => t.expiresAt > Date.now() && t.userId !== user.id);
+          fresh.push(ticket);
+          sessionStorage.setItem('ca-reset-tickets', JSON.stringify(fresh));
+        } catch { /* sessionStorage may be unavailable in SSR — demo only */ }
+        return { ok: true, token };
+      },
+
+      resetPassword: (token, newPassword) => {
+        if (!token) return { ok: false, error: 'Token tələb olunur' };
+        let tickets: ResetTicket[] = [];
+        try { tickets = JSON.parse(sessionStorage.getItem('ca-reset-tickets') || '[]'); } catch { /* ignore */ }
+        const ticket = tickets.find((t) => t.token === token);
+        if (!ticket) return { ok: false, error: 'Token tapılmadı və ya artıq istifadə edilib' };
+        if (ticket.expiresAt < Date.now()) {
+          return { ok: false, error: 'Tokenin müddəti bitib (30 dəqiqə). Yenidən sorğu göndərin.' };
+        }
+        const user = useDataStore.getState().users.find((u) => u.id === ticket.userId);
+        if (!user) return { ok: false, error: 'İstifadəçi tapılmadı' };
+        if (user.password === newPassword) return { ok: false, error: 'Yeni şifrə cari şifrə ilə eyni olmamalıdır' };
+        // password strength gate — same rule as schemas.changePasswordSchema
+        if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+          return { ok: false, error: 'Şifrə ən azı 8 simvol, bir hərf və bir rəqəm olmalıdır' };
+        }
+        useDataStore.getState().updateUser(ticket.userId, { password: newPassword });
+        // consume token
+        try {
+          const remaining = tickets.filter((t) => t.token !== token);
+          sessionStorage.setItem('ca-reset-tickets', JSON.stringify(remaining));
+        } catch { /* ignore */ }
         return { ok: true };
       },
 

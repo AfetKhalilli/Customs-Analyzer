@@ -17,8 +17,8 @@ export function ReferenceDataPage() {
     <div>
       <div className="section-header">
         <div>
-          <h1>Referans Məlumatlar</h1>
-          <p className="text-muted">HS kodları, ölkə riski, mal kateqoriyaları, brokerlər və risk qaydaları</p>
+          <h1>Risk və Qayda Reyestri</h1>
+          <p className="text-muted">Risk qaydaları, skor hədləri, HS kodları, ölkə riski, qiymət bandları və broker reyestri — gömrük və PCA auditi üçün vahid mənbə</p>
         </div>
       </div>
 
