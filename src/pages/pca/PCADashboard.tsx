@@ -79,7 +79,7 @@ export function PCADashboard() {
       <div className="section-header">
         <div>
           <h1>PCA — Buraxılış Sonrası Audit Sistemi</h1>
-          <p className="text-muted">Təsdiqlənmiş gömrük bəyannamələrinin audit və risk idarəetmə sistemi</p>
+          <p className="text-muted">Təsdiqlənmiş gömrük sənədlərinin audit və risk idarəetmə sistemi</p>
         </div>
       </div>
 
@@ -190,7 +190,7 @@ export function PCADashboard() {
         <div className="card-header"><h3>Audit İşlərinin Reyestri</h3></div>
         <div className="card-body">
           <div className="filter-bar">
-            <input className="input search" placeholder="Şirkət, iş nömrəsi və ya bəyannamə nömrəsi..."
+            <input className="input search" placeholder="Şirkət, iş nömrəsi və ya sənəd nömrəsi..."
               value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <select className="select" value={riskFilter} onChange={(e) => { setRiskFilter(e.target.value); setPage(1); }}>
               <option value="">Bütün risk səviyyələri</option>
@@ -215,8 +215,8 @@ export function PCADashboard() {
           {filtered.length === 0 ? (
             <EmptyState
               icon={<ShieldAlert size={24} />}
-              title={cases.length === 0 ? 'Hazırda audit üçün uyğun bəyannamə yoxdur' : 'Filtirlərə uyğun audit işi tapılmadı'}
-              hint={cases.length === 0 ? 'Bəyannamələr təsdiqləndikdən sonra audit işləri burada görünəcək' : 'Filtirləri dəyişdirib yenidən cəhd edin'}
+              title={cases.length === 0 ? 'Hazırda audit üçün uyğun sənəd yoxdur' : 'Filtirlərə uyğun audit işi tapılmadı'}
+              hint={cases.length === 0 ? 'Sənədlər təsdiqləndikdən sonra audit işləri burada görünəcək' : 'Filtirləri dəyişdirib yenidən cəhd edin'}
             />
           ) : (
             <>

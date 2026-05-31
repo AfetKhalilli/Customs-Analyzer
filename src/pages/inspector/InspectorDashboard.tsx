@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { StatusBadge, RiskBadge, ChannelPill, EmptyState } from '../../components/ui/Primitives';
-import { formatDate, formatDateTime, relativeTime } from '../../lib/utils';
-import { formatInspectionDeadline } from '../../lib/i18n';
+import { relativeTime } from '../../lib/utils';
+import { formatInspectionDeadline, DECLARATION_KIND_LABEL } from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function InspectorDashboard() {
@@ -12,7 +12,6 @@ export function InspectorDashboard() {
   const navigate = useNavigate();
   const decls = useDataStore((s) => s.declarations).filter((d) => d.assignedInspectorId === user.id);
 
-  const now = Date.now();
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const startOfWeek = new Date(); startOfWeek.setDate(startOfWeek.getDate() - 7);
 
@@ -33,7 +32,7 @@ export function InspectorDashboard() {
     return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
   });
 
-  // Inspection deadlines: count overdue and near-deadline (≤24h)
+  // Yoxlama son tarixləri: müddəti keçmiş və yaxınlaşan (≤24 saat)
   const overdueCount = active.filter((d) => d.inspectionDeadline && formatInspectionDeadline(d.inspectionDeadline).overdue).length;
   const dueSoonCount = active.filter((d) => {
     if (!d.inspectionDeadline) return false;
@@ -43,14 +42,14 @@ export function InspectorDashboard() {
 
   return (
     <div>
-      <h1>Müfəttiş İdarə Paneli</h1>
+      <h1>Müfəttiş İdarəetmə Paneli</h1>
       <p className="text-muted">{user.firstName} {user.lastName} · {user.department} şöbəsi</p>
 
       <div className="kpi-grid">
         <div className="kpi-card blue clickable" onClick={() => navigate('/declarations')}>
           <div className="kpi-label">Aktiv Audit İşləri</div>
           <div className="kpi-value">{active.length}</div>
-          <div className="kpi-hint">Davam edən bəyannamələr</div>
+          <div className="kpi-hint">Davam edən sənədlər</div>
         </div>
         <div className="kpi-card amber clickable" onClick={() => navigate('/declarations?status=Yüklənib')}>
           <div className="kpi-label">Yoxlamaya Götürülməyib</div>
@@ -65,7 +64,7 @@ export function InspectorDashboard() {
         <div className="kpi-card orange">
           <div className="kpi-label">Müddət Bitir (24 saat)</div>
           <div className="kpi-value">{dueSoonCount}</div>
-          <div className="kpi-hint">Yaxınlaşan deadline</div>
+          <div className="kpi-hint">Yaxınlaşan son tarix</div>
         </div>
         <div className="kpi-card orange clickable" onClick={() => navigate('/declarations?status=Düzəliş Tələb Olunur')}>
           <div className="kpi-label">Düzəliş Gözləyir</div>
@@ -81,21 +80,21 @@ export function InspectorDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div className="card">
-          <div className="card-header"><h3>Mənə Təyin Olunmuş Bəyannamələr</h3></div>
+          <div className="card-header"><h3>Mənə Təyin Olunmuş Sənədlər</h3></div>
           <div className="card-body" style={{ padding: 0 }}>
-            {sorted.length === 0 ? <EmptyState title="Aktiv audit işi yoxdur" hint="Hal-hazırda sizə təyin olunmuş aktiv bəyannamə yoxdur" /> : (
+            {sorted.length === 0 ? <EmptyState title="Aktiv audit işi yoxdur" hint="Hal-hazırda sizə təyin olunmuş aktiv sənəd yoxdur" /> : (
               <div className="table-wrap" style={{ border: 'none' }}>
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th>Qeydiyyat №</th>
                       <th>Sahib</th>
-                      <th>Növ</th>
-                      <th>Audit Statusu</th>
-                      <th>Risk</th>
-                      <th>Dəhliz</th>
+                      <th>Sənəd Növü</th>
+                      <th>Cari Vəziyyət</th>
+                      <th>Risk Göstəricisi</th>
+                      <th>Seçicilik Dəhlizi</th>
                       <th>Yoxlama Müddəti</th>
-                      <th>Yüklənmə</th>
+                      <th>Qəbul Vaxtı</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -105,7 +104,7 @@ export function InspectorDashboard() {
                         <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
                           <td className="cell-id">{d.id.slice(-10)}</td>
                           <td>{d.ownerDisplayName}</td>
-                          <td>{d.kind}</td>
+                          <td>{DECLARATION_KIND_LABEL[d.kind] ?? d.kind}</td>
                           <td><StatusBadge status={d.status} /></td>
                           <td><RiskBadge level={d.ai.riskLevel} score={d.ai.score} /></td>
                           <td><ChannelPill channel={d.ai.selectivityChannel} /></td>
@@ -128,7 +127,7 @@ export function InspectorDashboard() {
         </div>
 
         <div className="card">
-          <div className="card-header"><h3>Bu Həftəki Statistika</h3></div>
+          <div className="card-header"><h3>Bu Həftəki Göstəricilər</h3></div>
           <div className="card-body">
             <div style={{ marginBottom: 14 }}>
               <small className="text-muted">Tamamlanan Audit Sayı</small>

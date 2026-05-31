@@ -1,0 +1,119 @@
+// ============================================================================
+// Buttons
+// ============================================================================
+
+@use 'sass:color';
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+.btn {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  gap: $space-2;
+  padding: 0 $space-4;
+  height: 40px;
+  border-radius: $radius;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: $fs-md;
+  letter-spacing: $tracking-normal;
+  white-space: nowrap;
+  transition: background $dur-fast ease, border-color $dur-fast ease,
+              transform $dur-fast ease, box-shadow $dur-base ease,
+              filter $dur-fast ease;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+
+  // Default = primary: gradient brand, lift on hover, tonal focus ring
+  background: $grad-brand;
+  color: white;
+  box-shadow: 0 2px 6px rgba($brand-700, 0.20);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba($brand-700, 0.28);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba($brand-500, 0.30);
+  }
+
+  &:active { transform: translateY(0); filter: brightness(0.98); }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+    filter: grayscale(0.18);
+  }
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  &.btn-block { width: 100%; }
+  &.btn-sm { height: 32px; padding: 0 $space-3; font-size: $fs-sm; }
+  &.btn-lg { height: 48px; padding: 0 $space-6; font-size: $fs-lg; }
+}
+
+.btn-secondary {
+  background: $bg-card;
+  color: $text-700;
+  border-color: $border-300;
+  box-shadow: $shadow-xs;
+  filter: none;
+  &:hover:not(:disabled) {
+    background: $brand-50;
+    border-color: rgba($brand-600, 0.30);
+    color: $brand-700;
+    box-shadow: $shadow-sm;
+    filter: none;
+  }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: $text-700;
+  box-shadow: none;
+  filter: none;
+  &:hover:not(:disabled) {
+    background: $neutral-100;
+    box-shadow: none;
+    color: $text-900;
+    filter: none;
+    transform: none;
+  }
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, $danger-600 0%, color.adjust($danger-600, $lightness: -8%) 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba($danger-600, 0.25);
+  &:hover:not(:disabled) {
+    box-shadow: 0 8px 18px rgba($danger-600, 0.30);
+  }
+  &:focus-visible { box-shadow: 0 0 0 4px rgba($danger-600, 0.32); }
+}
+
+.btn-success {
+  background: linear-gradient(135deg, $success-600 0%, color.adjust($success-600, $lightness: -6%) 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba($success-600, 0.25);
+  &:hover:not(:disabled) {
+    box-shadow: 0 8px 18px rgba($success-600, 0.30);
+  }
+  &:focus-visible { box-shadow: 0 0 0 4px rgba($success-600, 0.32); }
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, $warning-600 0%, color.adjust($warning-600, $lightness: -6%) 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba($warning-600, 0.25);
+  &:hover:not(:disabled) {
+    box-shadow: 0 8px 18px rgba($warning-600, 0.30);
+  }
+  &:focus-visible { box-shadow: 0 0 0 4px rgba($warning-600, 0.32); }
+}

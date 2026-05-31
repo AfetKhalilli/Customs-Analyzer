@@ -49,17 +49,17 @@ export function UserDashboard() {
       <div className="section-header">
         <div>
           <h1>Salam, {dispName}!</h1>
-          <p className="text-muted">Bəyannamələrinizi izləyin və yeni bəyannamə təqdim edin</p>
+          <p className="text-muted">Sənədlərinizi izləyin və yeni sənəd əlavə edin</p>
         </div>
-        <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Yeni bəyannamə</Link>
+        <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link>
       </div>
 
       {correctionRequests.length > 0 && (
         <div className="banner warning">
           <AlertTriangle size={20} />
           <div className="b-body">
-            <div className="b-title">Düzəliş tələb olunan bəyannamələr var</div>
-            <div>{correctionRequests.length} ədəd bəyannamə üzrə müfəttiş düzəliş tələb edib. Aşağıdakı siyahıdan baxın.</div>
+            <div className="b-title">Düzəliş tələb olunan sənədlər var</div>
+            <div>{correctionRequests.length} ədəd sənəd üzrə müfəttiş düzəliş tələb edib. Aşağıdakı siyahıdan baxın.</div>
           </div>
         </div>
       )}
@@ -68,7 +68,7 @@ export function UserDashboard() {
         <div className={`kpi-card blue clickable`} onClick={() => setStatusFilter('')}>
           <div className="kpi-label">Ümumi</div>
           <div className="kpi-value">{k.total}</div>
-          <div className="kpi-hint">Bütün bəyannamələr</div>
+          <div className="kpi-hint">Bütün sənədlər</div>
         </div>
         <div className="kpi-card amber clickable" onClick={() => setStatusFilter('Yüklənib')}>
           <div className="kpi-label">Yüklənib</div>
@@ -94,7 +94,7 @@ export function UserDashboard() {
 
       <div className="card">
         <div className="card-header">
-          <h3>Bəyannamələrim</h3>
+          <h3>Sənədlərim</h3>
         </div>
         <div className="card-body">
           <div className="filter-bar">
@@ -124,9 +124,9 @@ export function UserDashboard() {
 
           {filtered.length === 0 ? (
             <EmptyState
-              title={decls.length === 0 ? 'Hələ bəyannamə yoxdur' : 'Filtrə uyğun nəticə yoxdur'}
-              hint={decls.length === 0 ? 'İlk bəyannamənizi yaratmaq üçün “Yeni bəyannamə” düyməsini sıxın' : 'Filtrləri dəyişdirib yenidən cəhd edin'}
-              action={decls.length === 0 ? <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Yeni bəyannamə</Link> : undefined}
+              title={decls.length === 0 ? 'Hələ sənəd yoxdur' : 'Süzgəcə uyğun nəticə yoxdur'}
+              hint={decls.length === 0 ? 'İlk sənədinizi yaratmaq üçün “Sənəd Əlavə Et” düyməsini sıxın' : 'Süzgəcləri dəyişdirib yenidən cəhd edin'}
+              action={decls.length === 0 ? <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link> : undefined}
             />
           ) : (
             <>
@@ -134,14 +134,14 @@ export function UserDashboard() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Növ</th>
+                      <th>Qeydiyyat №</th>
+                      <th>Sənəd Növü</th>
                       <th>Şöbə</th>
-                      <th>Tarix</th>
-                      <th>Status</th>
-                      <th>Risk</th>
-                      <th>Sənədlər</th>
-                      <th>Dəyər</th>
+                      <th>Qəbul Tarixi</th>
+                      <th>Cari Vəziyyət</th>
+                      <th>Risk Göstəricisi</th>
+                      <th>Əlavə Sənədlər</th>
+                      <th>Bəyan Dəyəri</th>
                     </tr>
                   </thead>
                   <tbody>

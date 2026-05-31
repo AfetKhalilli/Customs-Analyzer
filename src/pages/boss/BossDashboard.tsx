@@ -90,7 +90,7 @@ export function BossDashboard() {
         <div className="kpi-card blue clickable" onClick={() => navigate('/declarations')}>
           <div className="kpi-label">Ümumi sistem</div>
           <div className="kpi-value">{k.systemTotal}</div>
-          <div className="kpi-hint">Bütün bəyannamələr</div>
+          <div className="kpi-hint">Bütün sənədlər</div>
         </div>
         <div className="kpi-card purple clickable" onClick={() => navigate('/declarations?status=Yoxlanılır')}>
           <div className="kpi-label">Aktiv</div>

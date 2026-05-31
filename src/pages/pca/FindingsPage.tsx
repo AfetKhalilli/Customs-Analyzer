@@ -83,14 +83,14 @@ export function FindingsPage() {
                 <table className="table table-dense">
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th>Tapıntı №</th>
                       <th>Şirkət</th>
                       <th>Başlıq</th>
                       <th>Pozuntu Növü</th>
                       <th>Şiddət</th>
-                      <th>Status</th>
-                      <th className="cell-num">Rüsum təsiri</th>
-                      <th>Tarix</th>
+                      <th>Cari Vəziyyət</th>
+                      <th className="cell-num">Rüsum Təsiri</th>
+                      <th>Qeydiyyat Tarixi</th>
                     </tr>
                   </thead>
                   <tbody>

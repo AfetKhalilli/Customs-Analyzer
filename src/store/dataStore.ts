@@ -213,7 +213,7 @@ export const useDataStore = create<DataState>()(
           (d) => d.assignedInspectorId === id && !['Tamamlanmış', 'Rədd'].includes(d.status),
         );
         if (u.role === 'inspector' && hasActiveAssignments) {
-          return { ok: false, error: 'Bu müfəttişin aktiv bəyannamələri var. Əvvəlcə yenidən təyin edin.' };
+          return { ok: false, error: 'Bu müfəttişin aktiv sənədləri var. Əvvəlcə yenidən təyin edin.' };
         }
         set((s) => ({
           users: s.users.filter((x) => x.id !== id),
@@ -262,7 +262,7 @@ export const useDataStore = create<DataState>()(
         );
         const hasDecls = get().declarations.some((d) => d.department === name);
         if (hasUsers) return { ok: false, error: 'Şöbədə təyin olunmuş əməkdaşlar var' };
-        if (hasDecls) return { ok: false, error: 'Şöbədə bəyannamələr mövcuddur' };
+        if (hasDecls) return { ok: false, error: 'Şöbədə sənədlər mövcuddur' };
         set((s) => ({ departments: s.departments.filter((d) => d !== name) }));
         return { ok: true };
       },
@@ -357,7 +357,7 @@ export const useDataStore = create<DataState>()(
           get().addLog({
             declarationId: id, actorId: owner.id, actorRole: 'user',
             actorDisplayName: dispName(owner), action: 'UPLOAD',
-            description: 'Bəyannamə yükləndi',
+            description: 'Sənəd yükləndi',
           });
         }
         get().addLog({
@@ -374,8 +374,8 @@ export const useDataStore = create<DataState>()(
             description: `Müfəttiş təyin olundu: ${dispName(assigned)}`,
           });
           get().pushNotification({
-            userId: assigned.id, title: 'Yeni bəyannamə',
-            body: `${id} bəyannaməsi sizə təyin olundu.`,
+            userId: assigned.id, title: 'Yeni Sənəd Təyinatı',
+            body: `${id} nömrəli sənəd sizə təyin olundu.`,
             link: `/declaration/${id}`, type: 'info',
           });
         }
@@ -414,8 +414,8 @@ export const useDataStore = create<DataState>()(
 
       replaceDeclarationDocument: (declId, docId, nextDoc, actor) => {
         const d = get().declarations.find((x) => x.id === declId);
-        if (!d) return { ok: false, error: 'Bəyannamə tapılmadı' };
-        if (d.ownerId !== actor.id) return { ok: false, error: 'Yalnız bəyannamə sahibi sənədi redaktə edə bilər' };
+        if (!d) return { ok: false, error: 'Sənəd tapılmadı' };
+        if (d.ownerId !== actor.id) return { ok: false, error: 'Yalnız sənəd sahibi redaktə edə bilər' };
         if (d.status !== 'Düzəliş Tələb Olunur') {
           return { ok: false, error: 'Sənədi yalnız "Düzəliş Tələb Olunur" statusunda dəyişdirmək olar' };
         }
@@ -460,7 +460,7 @@ export const useDataStore = create<DataState>()(
         get().addLog({
           declarationId: id, actorId: actor.id, actorRole: actor.role,
           actorDisplayName: dispName(actor), action: 'RESUBMITTED',
-          description: 'Bəyannamə yenidən təqdim edildi',
+          description: 'Sənəd yenidən təqdim edildi',
         });
         get().addLog({
           declarationId: id, actorId: 'system', actorRole: 'user',
@@ -470,7 +470,7 @@ export const useDataStore = create<DataState>()(
         if (d.assignedInspectorId) {
           get().pushNotification({
             userId: d.assignedInspectorId, title: 'Yenidən təqdim edildi',
-            body: `${id} bəyannaməsi düzəlişlərdən sonra yenidən təqdim edildi.`,
+            body: `${id} nömrəli sənəd düzəlişlərdən sonra yenidən təqdim edildi.`,
             link: `/declaration/${id}`, type: 'info',
           });
         }
@@ -478,7 +478,7 @@ export const useDataStore = create<DataState>()(
 
       changeStatus: (id, next, actor, opts) => {
         const d = get().declarations.find((x) => x.id === id);
-        if (!d) return { ok: false, error: 'Bəyannamə tapılmadı' };
+        if (!d) return { ok: false, error: 'Sənəd tapılmadı' };
         const allowed = ALLOWED_TRANSITIONS[d.status];
         const isOverride = actor.role === 'departmentHead' || actor.role === 'boss';
         if (!isOverride && !allowed.includes(next)) {
@@ -536,21 +536,21 @@ export const useDataStore = create<DataState>()(
         // notify owner
         if (next === 'Təsdiq') {
           get().pushNotification({
-            userId: d.ownerId, title: 'Bəyannamə təsdiqləndi',
-            body: `${id} bəyannaməniz təsdiqlənib.`, link: `/declaration/${id}`, type: 'success',
+            userId: d.ownerId, title: 'Sənəd təsdiqləndi',
+            body: `${id} nömrəli sənədiniz təsdiqlənib.`, link: `/declaration/${id}`, type: 'success',
           });
         }
         if (next === 'Rədd') {
           get().pushNotification({
-            userId: d.ownerId, title: 'Bəyannamə rədd edildi',
-            body: `${id} bəyannaməniz rədd edildi. Səbəb: ${opts?.rejectReason ?? '—'}`,
+            userId: d.ownerId, title: 'Sənəd rədd edildi',
+            body: `${id} nömrəli sənədiniz rədd edildi. Səbəb: ${opts?.rejectReason ?? '—'}`,
             link: `/declaration/${id}`, type: 'error',
           });
         }
         if (next === 'Düzəliş Tələb Olunur') {
           get().pushNotification({
             userId: d.ownerId, title: 'Düzəliş tələb olunur',
-            body: `${id} bəyannaməniz üzrə düzəliş tələbi var.`,
+            body: `${id} nömrəli sənədiniz üzrə düzəliş tələbi var.`,
             link: `/declaration/${id}`, type: 'warning',
           });
         }
@@ -593,8 +593,8 @@ export const useDataStore = create<DataState>()(
           description: `Müfəttiş dəyişdirildi: ${dispName(insp)}`,
         });
         get().pushNotification({
-          userId: inspectorId, title: 'Bəyannamə təyin olundu',
-          body: `${declId} bəyannaməsi sizə yenidən təyin olundu.`,
+          userId: inspectorId, title: 'Sənəd təyin olundu',
+          body: `${declId} nömrəli sənəd sizə yenidən təyin olundu.`,
           link: `/declaration/${declId}`, type: 'info',
         });
       },

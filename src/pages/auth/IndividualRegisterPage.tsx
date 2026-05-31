@@ -65,12 +65,12 @@ export function IndividualRegisterPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Customs Analyzer</div>
+          <div className="hb-title">Gömrük Analizatoru</div>
         </div>
         <div className="hero-body">
           <h2>Fiziki şəxs hesabı yaradın</h2>
           <p>
-            Şəxsi məlumatlarınızı təhlükəsiz şəkildə daxil edin. Hesab yaratdıqdan sonra bəyannamələri
+            Şəxsi məlumatlarınızı təhlükəsiz şəkildə daxil edin. Hesab yaratdıqdan sonra sənədləri
             təqdim edə və AI əsaslı risk analizindən faydalana biləcəksiniz.
           </p>
         </div>

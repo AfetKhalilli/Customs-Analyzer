@@ -300,7 +300,7 @@ export function seedLogs(decls: Declaration[], users: AppUser[]): LogEntry[] {
     logs.push({
       id: uid('log'), declarationId: d.id,
       actorId: owner.id, actorRole: 'user', actorDisplayName: dispName(owner),
-      action: 'UPLOAD', description: 'Bəyannamə yükləndi', at: d.uploadedAt,
+      action: 'UPLOAD', description: 'Sənəd yükləndi', at: d.uploadedAt,
     });
     logs.push({
       id: uid('log'), declarationId: d.id,
@@ -368,7 +368,7 @@ export function seedNotifications(decls: Declaration[], users: AppUser[]): Notif
       notifs.push({
         id: uid('ntf'), userId: d.ownerId,
         title: 'Düzəliş tələb olunur',
-        body: `${d.id.slice(-8)} bəyannaməniz üzrə müfəttiş düzəliş tələb edib.`,
+        body: `${d.id.slice(-8)} nömrəli sənədiniz üzrə müfəttiş düzəliş tələb edib.`,
         link: `/declaration/${d.id}`,
         read: false, at: d.correctionRequest.requestedAt,
         type: 'warning',
@@ -377,8 +377,8 @@ export function seedNotifications(decls: Declaration[], users: AppUser[]): Notif
     if (d.status === 'Təsdiq' || d.status === 'Tamamlanmış') {
       notifs.push({
         id: uid('ntf'), userId: d.ownerId,
-        title: 'Bəyannamə təsdiqləndi',
-        body: `${d.id.slice(-8)} bəyannaməniz uğurla təsdiqləndi.`,
+        title: 'Sənəd təsdiqləndi',
+        body: `${d.id.slice(-8)} nömrəli sənədiniz uğurla təsdiqləndi.`,
         link: `/declaration/${d.id}`,
         read: Math.random() > 0.5,
         at: new Date(new Date(d.uploadedAt).getTime() + 3700000).toISOString(),
@@ -388,8 +388,8 @@ export function seedNotifications(decls: Declaration[], users: AppUser[]): Notif
     if (d.status === 'Rədd') {
       notifs.push({
         id: uid('ntf'), userId: d.ownerId,
-        title: 'Bəyannamə rədd edildi',
-        body: `${d.id.slice(-8)} bəyannaməniz rədd edilib.`,
+        title: 'Sənəd rədd edildi',
+        body: `${d.id.slice(-8)} nömrəli sənədiniz rədd edilib.`,
         link: `/declaration/${d.id}`,
         read: false,
         at: new Date(new Date(d.uploadedAt).getTime() + 3700000).toISOString(),
@@ -404,7 +404,7 @@ export function seedNotifications(decls: Declaration[], users: AppUser[]): Notif
       notifs.push({
         id: uid('ntf'), userId: d.assignedInspectorId,
         title: 'Yeni təyinat',
-        body: `${d.id.slice(-8)} bəyannaməsi sizə təyin olundu (${d.department}).`,
+        body: `${d.id.slice(-8)} nömrəli sənəd sizə təyin olundu (${d.department}).`,
         link: `/declaration/${d.id}`,
         read: Math.random() > 0.3,
         at: new Date(new Date(d.uploadedAt).getTime() + 5000).toISOString(),

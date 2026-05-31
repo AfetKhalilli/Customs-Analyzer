@@ -79,7 +79,7 @@ export function Company360() {
 
           <div className="kpi-grid mt-3" style={{ marginBottom: 0 }}>
             <div className="kpi-card blue">
-              <div className="kpi-label">Bəyannamələr</div>
+              <div className="kpi-label">Sənədlər</div>
               <div className="kpi-value">{companyDecls.length}</div>
             </div>
             <div className="kpi-card purple">
@@ -103,7 +103,7 @@ export function Company360() {
         onChange={setTab}
         items={[
           { value: 'overview',     label: 'İcmal' },
-          { value: 'declarations', label: 'Bəyannamələr', count: companyDecls.length },
+          { value: 'declarations', label: 'Sənədlər', count: companyDecls.length },
           { value: 'documents',    label: 'Sənədlər' },
           { value: 'history',      label: 'Tarixçə' },
           { value: 'inspectors',   label: 'Müfəttişlər', count: inspectorsInvolved.length },
@@ -118,7 +118,7 @@ export function Company360() {
           <h3>Qısa Məlumat</h3>
           <p>Bu səhifə {companyName} şirkətinin bütün gömrük fəaliyyətinin audit üçün cəmlənmiş 360° görünüşünü təqdim edir.</p>
           <div className="divider" />
-          <p><b>Ümumi bəyannamələr:</b> {companyDecls.length}</p>
+          <p><b>Ümumi sənədlər:</b> {companyDecls.length}</p>
           <p><b>Aktiv audit işləri:</b> {companyCases.filter((c) => c.status !== 'Closed').length}</p>
           <p><b>Aşkar anomaliyalar:</b> {companyAnomalies.filter((a) => !a.dismissed).length}</p>
           <p><b>Açıq tapıntılar:</b> {companyFindings.filter((f) => f.status === 'Açıq' || f.status === 'İşlənir').length}</p>
@@ -128,7 +128,7 @@ export function Company360() {
       {tab === 'declarations' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>ID</th><th>Növ</th><th>Şöbə</th><th>Tarix</th><th>Status</th><th>Risk</th><th className="cell-num">Dəyər</th><th></th></tr></thead>
+            <thead><tr><th>Qeydiyyat №</th><th>Sənəd Növü</th><th>Şöbə</th><th>Qəbul Tarixi</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th className="cell-num">Bəyan Dəyəri</th><th></th></tr></thead>
             <tbody>
               {companyDecls.map((d) => (
                 <tr key={d.id} onClick={() => handleOpenDecl(d.id)}>
@@ -144,7 +144,7 @@ export function Company360() {
               ))}
             </tbody>
           </table>
-          {companyDecls.length === 0 && <EmptyState title="Bəyannamə yoxdur" />}
+          {companyDecls.length === 0 && <EmptyState title="Sənəd yoxdur" />}
         </div>
       )}
 
@@ -160,7 +160,7 @@ export function Company360() {
                   <div className="doc-icon">📄</div>
                   <div className="doc-meta">
                     <div className="doc-name">{doc.typeCode} — {doc.fileName}</div>
-                    <div className="doc-info">{doc.fileSizeKB} KB · {formatDate(doc.uploadedAt)} · Bəyannamə: {doc.declId.slice(-8)}</div>
+                    <div className="doc-info">{doc.fileSizeKB} KB · {formatDate(doc.uploadedAt)} · Sənəd: {doc.declId.slice(-8)}</div>
                   </div>
                 </div>
               ))}
@@ -241,7 +241,7 @@ export function Company360() {
       {tab === 'findings' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>Başlıq</th><th>Pozuntu Növü</th><th>Şiddət</th><th>Status</th><th className="cell-num">Rüsum təsiri</th><th>Tarix</th></tr></thead>
+            <thead><tr><th>Başlıq</th><th>Pozuntu Növü</th><th>Şiddət</th><th>Cari Vəziyyət</th><th className="cell-num">Rüsum Təsiri</th><th>Qeydiyyat Tarixi</th></tr></thead>
             <tbody>
               {companyFindings.map((f) => (
                 <tr key={f.id} style={{ cursor: 'default' }}>
@@ -297,7 +297,7 @@ export function Company360() {
                       </td>
                     </tr>
                     <tr style={{ cursor: 'default' }}>
-                      <td><b>Bəyannamə sayı</b></td>
+                      <td><b>Sənəd sayı</b></td>
                       <td className="cell-num">{companyDecls.length}</td>
                       <td className="cell-num">{(decls.length / Math.max(1, new Set(decls.map((d) => d.ownerId)).size)).toFixed(1)}</td>
                       <td className="cell-num text-muted">—</td>

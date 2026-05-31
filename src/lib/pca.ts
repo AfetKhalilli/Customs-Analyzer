@@ -49,7 +49,7 @@ export function detectPatterns(declarations: Declaration[]): PCAAnomaly[] {
         'REPEATED_HIGH_RISK',
         'Təkrarlanan yüksək risk',
         'Yüksək',
-        `${list[0].ownerDisplayName} şirkətinin ${high.length} yüksək riskli bəyannaməsi var`,
+        `${list[0].ownerDisplayName} şirkətinin ${high.length} yüksək riskli sənədi var`,
         [owner], high.map((d) => d.id)
       ));
     }
@@ -67,7 +67,7 @@ export function detectPatterns(declarations: Declaration[]): PCAAnomaly[] {
         'UNDERVALUATION_PATTERN',
         'Aşağı qiymət qoyma davranışı',
         'Yüksək',
-        `${list[0].ownerDisplayName}: ${undervalued.length} bəyannamədə vahid qiymət bazar səviyyəsindən aşağıdır`,
+        `${list[0].ownerDisplayName}: ${undervalued.length} sənəddə vahid qiymət bazar səviyyəsindən aşağıdır`,
         [owner], undervalued.map((d) => d.id)
       ));
     }
@@ -84,7 +84,7 @@ export function detectPatterns(declarations: Declaration[]): PCAAnomaly[] {
         'HS_CODE_SWITCHING',
         'HS kodu dəyişdirmə',
         'Orta',
-        `${list[0].ownerDisplayName}: ${prefixes.size} fərqli HS prefiksi istifadə edib (${list.length} bəyannamədə)`,
+        `${list[0].ownerDisplayName}: ${prefixes.size} fərqli HS prefiksi istifadə edib (${list.length} sənəddə)`,
         [owner], list.map((d) => d.id)
       ));
     }
@@ -103,7 +103,7 @@ export function detectPatterns(declarations: Declaration[]): PCAAnomaly[] {
           'VALUE_SPIKE',
           'Bəyan dəyəri sıçrayışı',
           'Yüksək',
-          `${list[0].ownerDisplayName}: ${sorted[i].id.slice(-8)} bəyannaməsi ortalama dəyərdən ${(curAZN / avgAZN).toFixed(1)}x böyükdür`,
+          `${list[0].ownerDisplayName}: ${sorted[i].id.slice(-8)} nömrəli sənəd ortalama dəyərdən ${(curAZN / avgAZN).toFixed(1)}x böyükdür`,
           [owner], [sorted[i].id]
         ));
         break;
@@ -122,7 +122,7 @@ export function detectPatterns(declarations: Declaration[]): PCAAnomaly[] {
             'POST_REJECTION_APPROVAL',
             'Rəddən sonra təsdiq',
             'Orta',
-            `${list[0].ownerDisplayName}: rəddən sonra ${gap.toFixed(0)} gün ərzində eyni şirkətin başqa bəyannaməsi təsdiqlənib`,
+            `${list[0].ownerDisplayName}: rəddən sonra ${gap.toFixed(0)} gün ərzində eyni şirkətin başqa sənədi təsdiqlənib`,
             [owner], [sorted[i - 1].id, sorted[i].id]
           ));
           break;

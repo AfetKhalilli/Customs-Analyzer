@@ -143,6 +143,9 @@ export const declStep4Schema = z.object({
   totalDeclaredValue: z.coerce.number().positive('Müsbət rəqəm'),
   totalQuantity: z.coerce.number().positive('Müsbət rəqəm'),
   unitOfMeasure: z.string().min(1, 'Ölçü vahidi seçin'),
+  // Cascading: goodsCategory drives goodsSubcategory; both mandatory.
+  goodsCategory: z.string().min(1, 'Mal kateqoriyasını seçin'),
+  goodsSubcategory: z.string().min(1, 'Alt kateqoriyanı seçin'),
   hsCode: z.string().regex(hsCodeRegex, 'HS kodu tələb olunur (4, 6, 8 və ya 10 rəqəm — məs: 8517.12)'),
   originCertificateNo: z.string().optional().or(z.literal('')),
   additionalNotes: z.string().max(1000).optional().or(z.literal('')),

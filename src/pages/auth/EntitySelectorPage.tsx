@@ -10,12 +10,12 @@ export function EntitySelectorPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Customs Analyzer</div>
+          <div className="hb-title">Gömrük Analizatoru</div>
         </div>
         <div className="hero-body">
           <h2>Hesab növünüzü seçin və qeydiyyata başlayın</h2>
           <p>
-            Fərdi və ya şirkət hesabı yaradın. Gömrük bəyannamələrinizi təqdim edin, AI əsaslı risk
+            Fərdi və ya şirkət hesabı yaradın. Gömrük sənədlərinizi təqdim edin, süni intellekt əsaslı risk
             analizindən faydalanın və status izləməsinə dərhal başlayın.
           </p>
         </div>
@@ -29,12 +29,12 @@ export function EntitySelectorPage() {
             <div className="entity-card" onClick={() => navigate('/register/individual')}>
               <div className="ic"><User /></div>
               <h3>Fiziki Şəxs</h3>
-              <p>Fərdi istifadəçi kimi bəyannamə təqdim edin</p>
+              <p>Fərdi istifadəçi kimi sənəd təqdim edin</p>
             </div>
             <div className="entity-card" onClick={() => navigate('/register/company')}>
               <div className="ic"><Building2 /></div>
               <h3>Hüquqi Şəxs</h3>
-              <p>Şirkət adından bəyannamə təqdim edin</p>
+              <p>Şirkət adından sənəd təqdim edin</p>
             </div>
           </div>
           <div className="auth-footer">

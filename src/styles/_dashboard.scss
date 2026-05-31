@@ -1,0 +1,239 @@
+// ============================================================================
+// Dashboard widgets — timeline, activity feed, AI panel, risk bars
+// ============================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+// ── Timeline (vertical log of events) ───────────────────────────────────────
+.timeline {
+  position: relative;
+  padding-left: $space-6;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 6px; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg,
+      rgba($brand-600, 0.45) 0%,
+      $border-300 24%,
+      $border-300 76%,
+      rgba($brand-600, 0.25) 100%);
+  }
+}
+
+.timeline-group {
+  margin-bottom: $space-5;
+  .tg-label {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: $tracking-wide;
+    color: $text-500;
+    margin-bottom: $space-3;
+    font-weight: 700;
+  }
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: $space-4;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -22px; top: 6px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: $brand-600;
+    border: 2px solid $bg-card;
+    box-shadow: 0 0 0 3px rgba($brand-600, 0.18);
+    transition: transform $dur-base ease, box-shadow $dur-base ease;
+  }
+
+  &:hover::before {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 5px rgba($brand-600, 0.16);
+  }
+
+  .ti-title {
+    font-weight: 600;
+    font-size: $fs-md;
+    color: $text-900;
+  }
+  .ti-meta {
+    font-size: $fs-sm;
+    color: $text-500;
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+}
+
+// ── Activity feed ──────────────────────────────────────────────────────────
+.activity-feed {
+  display: flex; flex-direction: column;
+}
+
+.activity-item {
+  display: flex; gap: $space-3;
+  padding: $space-3 0;
+  border-bottom: 1px solid $border-200;
+  transition: background $dur-fast ease;
+  &:last-child { border-bottom: none; }
+  &:hover {
+    background: $neutral-50;
+    margin: 0 (-$space-2);
+    padding: $space-3 $space-2;
+    border-radius: $radius-sm;
+  }
+  .avatar { flex-shrink: 0; }
+  .a-body { flex: 1; min-width: 0; }
+  .a-text {
+    font-size: $fs-md;
+    color: $text-700;
+    line-height: $lh-snug;
+    b { color: $text-900; font-weight: 600; }
+  }
+  .a-time {
+    font-size: $fs-sm;
+    color: $text-500;
+    margin-top: 4px;
+  }
+}
+
+// ── AI risk panel (score + flags + thresholds) ──────────────────────────────
+.ai-panel {
+  background: $bg-card;
+  border: 1px solid $border-300;
+  border-radius: $radius-md;
+  padding: $space-6;
+  display: grid; gap: $space-6;
+  grid-template-columns: 220px 1fr;
+  box-shadow: $shadow-xs;
+  position: relative;
+  overflow: hidden;
+
+  // Subtle accent strip on the top edge — matches reference hero pattern
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: $grad-accent-line;
+    opacity: 0.85;
+  }
+
+  @include bp('max-md') {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ai-score-circle {
+  width: 170px; height: 170px;
+  margin: 0 auto;
+  position: relative;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--ring-color, #{$brand-600}) var(--ring-angle, 0deg),
+    $neutral-100 0
+  );
+  display: grid; place-items: center;
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 134px; height: 134px;
+    background: $bg-card;
+    border-radius: 50%;
+    box-shadow: inset 0 0 16px rgba(15, 23, 42, 0.04);
+  }
+  .inner {
+    position: relative; z-index: 1;
+    text-align: center;
+    .v {
+      font-size: 40px;
+      font-weight: 800;
+      color: $text-900;
+      letter-spacing: -0.025em;
+      font-variant-numeric: tabular-nums;
+    }
+    .l {
+      font-size: $fs-sm;
+      color: $text-500;
+      font-weight: 500;
+    }
+  }
+}
+
+.ai-flags {
+  display: flex; flex-direction: column;
+  gap: $space-2;
+}
+
+.ai-flag {
+  padding: 10px $space-3;
+  border-radius: $radius-sm;
+  background: $neutral-50;
+  border-left: 3px solid $neutral-300;
+  font-size: $fs-md;
+  line-height: $lh-snug;
+  transition: background $dur-fast ease, transform $dur-fast ease;
+
+  &:hover { transform: translateX(2px); }
+
+  &.critical { background: $danger-50;  border-left-color: $danger-600;  color: $danger-600; }
+  &.warning  { background: $warning-50; border-left-color: $warning-600; color: $warning-600; }
+  &.info     { background: $brand-50;   border-left-color: $brand-600;   color: $brand-700; }
+
+  code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-family: $font-mono;
+  }
+}
+
+// ── Risk bars (horizontal distribution) ─────────────────────────────────────
+.risk-bars {
+  display: flex; flex-direction: column;
+  gap: $space-2;
+}
+
+.risk-bar {
+  display: grid;
+  grid-template-columns: 110px 1fr 60px;
+  gap: $space-3;
+  align-items: center;
+  font-size: $fs-md;
+
+  .rb-label {
+    color: $text-700;
+    font-weight: 600;
+  }
+  .rb-track {
+    height: 8px;
+    background: $neutral-100;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.02);
+  }
+  .rb-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width $dur-slow ease;
+  }
+  &.low      .rb-fill { background: linear-gradient(90deg, #6ee7b7, $success-600); }
+  &.medium   .rb-fill { background: linear-gradient(90deg, #fde68a, $warning-600); }
+  &.high     .rb-fill { background: linear-gradient(90deg, #fdba74, $accent-orange); }
+  &.critical .rb-fill { background: linear-gradient(90deg, #fca5a5, $danger-600); }
+  .rb-count {
+    text-align: right;
+    color: $text-700;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+}

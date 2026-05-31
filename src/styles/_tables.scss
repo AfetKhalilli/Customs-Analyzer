@@ -1,0 +1,143 @@
+// ============================================================================
+// Tables — enterprise data grid styling
+// ============================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+.table-wrap {
+  background: $bg-card;
+  border: 1px solid $border-300;
+  border-radius: $radius-md;
+  overflow: hidden;
+  box-shadow: $shadow-xs;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: 12px $space-4;
+    text-align: left;
+    font-size: $fs-md;
+    border-bottom: 1px solid $border-200;
+    vertical-align: middle;
+  }
+  th {
+    background: $neutral-50;
+    font-weight: 700;
+    color: $text-500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: $tracking-wide;
+    border-bottom: 1px solid $border-300;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  tbody tr {
+    transition: background $dur-fast ease;
+    &:hover {
+      background: $brand-50;
+      cursor: pointer;
+    }
+    &.selected {
+      background: rgba($brand-600, 0.06);
+      box-shadow: inset 3px 0 0 $brand-600;
+    }
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .cell-actions {
+    white-space: nowrap;
+    text-align: right;
+  }
+  .cell-id {
+    font-family: $font-mono;
+    font-size: $fs-sm;
+    color: $text-600;
+  }
+  .cell-num,
+  th.cell-num,
+  td.cell-num,
+  th.text-right,
+  td.text-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+// Dense variant — denser audit/log lists
+.table-dense {
+  th, td {
+    padding: 8px $space-3;
+    font-size: $fs-sm;
+  }
+}
+
+// ── Inline row action buttons (icon-only) ───────────────────────────────────
+.row-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: $radius-sm;
+  border: 1px solid transparent;
+  background: $neutral-50;
+  color: $text-600;
+  cursor: pointer;
+  transition: all $dur-fast ease;
+
+  & + & { margin-left: 4px; }
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    background: $brand-50;
+    color: $brand-700;
+    border-color: rgba($brand-600, 0.18);
+  }
+  &.danger:hover {
+    background: $danger-50;
+    color: $danger-600;
+    border-color: rgba($danger-600, 0.22);
+  }
+  &.success:hover {
+    background: $success-50;
+    color: $success-600;
+    border-color: rgba($success-600, 0.22);
+  }
+}
+
+// ── Pagination ─────────────────────────────────────────────────────────────
+.pagination {
+  display: flex; gap: 4px; align-items: center;
+  justify-content: center;
+  padding: $space-3;
+}
+
+.page-btn {
+  min-width: 34px; height: 34px;
+  padding: 0 $space-3;
+  border: 1px solid $border-300;
+  border-radius: $radius-sm;
+  background: $bg-card;
+  color: $text-700;
+  font-size: $fs-md;
+  font-weight: 500;
+  transition: all $dur-fast ease;
+  cursor: pointer;
+
+  &:hover { background: $neutral-50; border-color: $neutral-300; }
+  &.active {
+    background: $brand-600;
+    color: white;
+    border-color: $brand-600;
+    box-shadow: 0 2px 8px rgba($brand-600, 0.25);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

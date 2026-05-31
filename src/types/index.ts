@@ -113,6 +113,10 @@ export interface DeclarationTotals {
   totalDeclaredValue: number;
   totalQuantity: number;
   unitOfMeasure: string;
+  /** Mal kateqoriyası — cascading parent (FOOD, ELECTRONICS, …). */
+  goodsCategory?: string;
+  /** Mal alt kateqoriyası — bound to goodsCategory. */
+  goodsSubcategory?: string;
   hsCode?: string;
   originCertificateNo?: string;
   additionalNotes?: string;

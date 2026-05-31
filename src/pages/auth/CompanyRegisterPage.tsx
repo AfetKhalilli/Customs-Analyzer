@@ -91,13 +91,13 @@ export function CompanyRegisterPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Customs Analyzer</div>
+          <div className="hb-title">Gömrük Analizatoru</div>
         </div>
         <div className="hero-body">
           <h2>Hüquqi şəxs hesabı yaradın</h2>
           <p>
             Şirkətinizi və məsul şəxsi qeydiyyatdan keçirin. Hesab aktivləşdikdən sonra şirkət adından
-            bəyannamələri təqdim edə və risk analizindən istifadə edə bilərsiniz.
+            sənədləri təqdim edə və risk analizindən istifadə edə bilərsiniz.
           </p>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Controller, useFormContext } from 'react-hook-form';
 import { Upload, File, X, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -281,10 +282,14 @@ export function HsCodeField({
   const [query, setQuery] = React.useState<string>(value);
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [anchor, setAnchor] = React.useState<{ top: number; left: number; width: number; openUp: boolean }>(
+    { top: 0, left: 0, width: 0, openUp: false }
+  );
 
   React.useEffect(() => {
     // keep input synced when form is reset
-    if (value !== query && document.activeElement !== containerRef.current?.querySelector('input')) {
+    if (value !== query && document.activeElement !== inputRef.current) {
       setQuery(value);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,11 +297,46 @@ export function HsCodeField({
 
   React.useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      // The portal-rendered listbox lives outside the container; check via data-attr.
+      if ((target as HTMLElement)?.closest?.('[data-hs-listbox]')) return;
+      setOpen(false);
     };
     window.addEventListener('mousedown', onDocClick);
     return () => window.removeEventListener('mousedown', onDocClick);
   }, []);
+
+  // Position the portal-rendered dropdown relative to the input. Recomputes
+  // on open, on scroll (any ancestor) and on resize so the listbox tracks the
+  // input even inside a scrollable modal body. Flips upward when there isn't
+  // enough room below.
+  React.useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const listMaxH = 280;
+      const spaceBelow = window.innerHeight - r.bottom - 8;
+      const spaceAbove = r.top - 8;
+      const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+      setAnchor({
+        top: openUp ? r.top - 4 : r.bottom + 4,
+        left: r.left,
+        width: r.width,
+        openUp,
+      });
+      void listMaxH;
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
 
   const results = React.useMemo(() => searchHs(query, 10), [query]);
   const matched: HsCodeRecord | undefined = React.useMemo(() => lookupHs(value), [value]);
@@ -314,9 +354,10 @@ export function HsCodeField({
   };
 
   return (
-    <div className="form-group" ref={containerRef} style={{ position: 'relative' }}>
+    <div className="form-group" ref={containerRef}>
       {label && <label className="label">{label}{required && <span className="req">*</span>}</label>}
       <input
+        ref={inputRef}
         className={cn('input', err && 'error')}
         placeholder={placeholder}
         autoComplete="off"
@@ -337,39 +378,45 @@ export function HsCodeField({
           }
         }}
       />
-      {open && results.length > 0 && (
+      {/* Portal-rendered listbox — escapes parent overflow:auto so it never
+          gets clipped inside the document-attachment modal. */}
+      {open && results.length > 0 && createPortal(
         <div
           role="listbox"
+          data-hs-listbox
+          // Inline positioning is intrinsic to a portal-rendered floating
+          // element; visual styling (background/border/shadow) comes from CSS.
+          className="hs-listbox"
           style={{
-            position: 'absolute', zIndex: 20, top: '100%', left: 0, right: 0,
-            marginTop: 4, background: 'var(--n-0)', border: '1px solid var(--n-200)',
-            borderRadius: 8, boxShadow: 'var(--shadow-md)', maxHeight: 280, overflowY: 'auto',
+            position: 'fixed',
+            top: anchor.openUp ? undefined : anchor.top,
+            bottom: anchor.openUp ? window.innerHeight - anchor.top : undefined,
+            left: anchor.left,
+            width: anchor.width,
           }}
         >
           {results.map((r) => (
             <button
               key={r.code}
               type="button"
+              className="hs-listbox-item"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => commit(r.code)}
-              style={{
-                display: 'flex', width: '100%', textAlign: 'left',
-                padding: '8px 12px', gap: 10, background: 'none', border: 'none',
-                borderBottom: '1px solid var(--n-100)', cursor: 'pointer',
-              }}
             >
-              <span className="mono" style={{ minWidth: 90, color: 'var(--brand-700)', fontWeight: 600 }}>{r.code}</span>
-              <span style={{ flex: 1 }}>
-                <span style={{ fontWeight: 500, color: 'var(--n-900)' }}>{r.label}</span>
-                <span style={{ fontSize: 12, color: 'var(--n-500)', display: 'block' }}>
+              <span className="mono hs-listbox-code">{r.code}</span>
+              <span className="hs-listbox-meta">
+                <span className="hs-listbox-label">{r.label}</span>
+                <span className="hs-listbox-sub">
                   {r.category} · {r.tariffRate}% rüsum · {r.riskTier === 'high' ? 'yüksək' : r.riskTier === 'medium' ? 'orta' : 'aşağı'} risk
                 </span>
               </span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
       {matched && !err && (
-        <div className="help-text" style={{ marginTop: 4, color: 'var(--brand-700)' }}>
+        <div className="help-text hs-match-ok">
           ✓ {matched.label} · {matched.category} · rüsum {matched.tariffRate}%
         </div>
       )}

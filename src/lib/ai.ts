@@ -291,7 +291,7 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
         const cdHsNorm = canonicalizeHs(String(cdHs)) ?? String(cdHs);
         if (cdHsNorm !== totalsHsNorm) {
           fire('HS_CODE_INTRA_MISMATCH',
-            `Gömrük bəyannaməsi (${cd.fileName}) HS=${cdHs} ≠ ümumi HS=${totals.hsCode}`,
+            `Gömrük sənədi (${cd.fileName}) HS=${cdHs} ≠ ümumi HS=${totals.hsCode}`,
             `customs_decl.${cd.id}.hsCode=${cdHs} ≠ totals.hsCode=${totals.hsCode}`);
         }
       }
@@ -307,7 +307,7 @@ export function runAI(d: AIInput, thresholds: ThresholdSet = DEFAULT_THRESHOLDS)
       if (seen.size && !seen.has(norm)) {
         const firstKey = Array.from(seen.keys())[0];
         fire('HS_CODE_INTRA_MISMATCH',
-          `Birdən çox gömrük bəyannaməsində fərqli HS kodları aşkar edildi: ${firstKey} vs ${norm}`,
+          `Birdən çox gömrük sənədində fərqli HS kodları aşkar edildi: ${firstKey} vs ${norm}`,
           `customs_decls=${customsDocs.length}; HSlər: ${Array.from(seen.values()).concat(cd.fileName).join(', ')}`);
         break;
       }

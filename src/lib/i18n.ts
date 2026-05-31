@@ -75,9 +75,9 @@ export const CHANNEL_LABEL: Record<'GREEN' | 'YELLOW' | 'RED', string> = {
 
 // ── Declaration kinds ─────────────────────────────────────────────────────
 export const DECLARATION_KIND_LABEL: Record<DeclarationKind, string> = {
-  Idxal:   'İdxal Bəyannaməsi',
-  Ixrac:   'İxrac Bəyannaməsi',
-  Tranzit: 'Tranzit Bəyannaməsi',
+  Idxal:   'İdxal Sənədi',
+  Ixrac:   'İxrac Sənədi',
+  Tranzit: 'Tranzit Sənədi',
 };
 
 // ── Finding categories — NEW 7-category enum (single source of truth) ─────
@@ -153,7 +153,7 @@ export const ESCALATION_LEVEL_LABEL: Record<'Departament' | 'BaşDirektor' | 'Na
 
 // ── Audit log actions ─────────────────────────────────────────────────────
 export const LOG_ACTION_LABEL: Record<LogAction, string> = {
-  UPLOAD:                'Bəyannamə təqdim edildi',
+  UPLOAD:                'Sənəd təqdim edildi',
   AI_RUN:                'Süni intellekt risk qiymətləndirməsi aparıldı',
   ASSIGNED:              'Müfəttiş təyinatı aparıldı',
   STATUS_CHANGE:         'Status dəyişikliyi qeydə alındı',

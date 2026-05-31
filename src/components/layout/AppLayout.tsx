@@ -4,6 +4,7 @@ import {
   LayoutDashboard, FilePlus, FileText, User, Settings, LogOut, Bell, RefreshCw,
   Users, Building2, BarChart3, ShieldCheck, AlertTriangle, BookOpen, Bookmark,
   Activity, Lock, Briefcase, Eye, FileSearch, ClipboardList, UserCog, Database,
+  Menu, X,
 } from 'lucide-react';
 import { useCurrentUser, useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
@@ -15,51 +16,51 @@ import type { Role } from '../../types';
 
 const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; icon: React.ReactNode }[]> = {
   user: [
-    { label: 'İdarə paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Yeni bəyannamə', to: '/declaration/new', icon: <FilePlus size={18} /> },
-    { label: 'Bəyannamələrim', to: '/declarations', icon: <FileText size={18} /> },
+    { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
+    { label: 'Sənəd Əlavə Et', to: '/declaration/new', icon: <FilePlus size={18} /> },
+    { label: 'Sənədlərim', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
-    { label: 'Tənzimləmələr', to: '/settings', icon: <Settings size={18} /> },
+    { label: 'Sistem Tənzimləmələri', to: '/settings', icon: <Settings size={18} /> },
   ],
   inspector: [
-    { label: 'İdarə paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Bəyannamələr', to: '/declarations', icon: <FileText size={18} /> },
+    { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
+    { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
-    { label: 'Tənzimləmələr', to: '/settings', icon: <Settings size={18} /> },
+    { label: 'Sistem Tənzimləmələri', to: '/settings', icon: <Settings size={18} /> },
   ],
   departmentHead: [
-    { label: 'İdarə paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Bəyannamələr', to: '/declarations', icon: <FileText size={18} /> },
+    { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
+    { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Müfəttişlər', to: '/inspectors', icon: <Users size={18} /> },
-    { label: 'Əməkdaş idarəetməsi', to: '/admin/staff', icon: <UserCog size={18} /> },
+    { label: 'Əməkdaş İdarəetməsi', to: '/admin/staff', icon: <UserCog size={18} /> },
     { label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
-    { label: 'Tənzimləmələr', to: '/settings', icon: <Settings size={18} /> },
+    { label: 'Sistem Tənzimləmələri', to: '/settings', icon: <Settings size={18} /> },
   ],
   boss: [
-    { label: 'İdarə paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Bəyannamələr', to: '/declarations', icon: <FileText size={18} /> },
+    { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
+    { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Şöbələr', to: '/departments', icon: <Building2 size={18} /> },
     { label: 'Müfəttişlər', to: '/inspectors', icon: <Users size={18} /> },
-    { section: 'ADMİN', label: 'Əməkdaşlar və Şöbələr', to: '/admin/staff', icon: <UserCog size={18} /> },
+    { section: 'ADMİNİSTRASİYA', label: 'Əməkdaşlar və Şöbələr', to: '/admin/staff', icon: <UserCog size={18} /> },
     { label: 'Risk və Qayda Reyestri', to: '/admin/reference', icon: <Database size={18} /> },
     { section: 'SİSTEM', label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
-    { label: 'Tənzimləmələr', to: '/settings', icon: <Settings size={18} /> },
+    { label: 'Sistem Tənzimləmələri', to: '/settings', icon: <Settings size={18} /> },
   ],
   pca: [
-    { section: 'AUDIT', label: 'İdarə paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
+    { section: 'AUDİT', label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Şirkətlər', to: '/pca/companies', icon: <Building2 size={18} /> },
     { label: 'Anomaliyalar', to: '/pca/anomalies', icon: <AlertTriangle size={18} /> },
     { label: 'Tapıntılar', to: '/pca/findings', icon: <FileSearch size={18} /> },
     { label: 'İzləmə Siyahısı', to: '/pca/watchlist', icon: <Bookmark size={18} /> },
     { label: 'Audit Tarixçəsi', to: '/pca/timeline', icon: <Activity size={18} /> },
     { section: 'HESAB', label: 'Profil', to: '/profile', icon: <User size={18} /> },
-    { label: 'Tənzimləmələr', to: '/settings', icon: <Settings size={18} /> },
+    { label: 'Sistem Tənzimləmələri', to: '/settings', icon: <Settings size={18} /> },
   ],
 };
 
@@ -76,6 +77,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +89,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
+
+  // Close the mobile drawer on Escape, and prevent body scroll while it's open
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
 
   if (!user) return null;
   const role = user.role;
@@ -107,20 +121,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="app-shell">
-      <aside className={cn('sidebar', role === 'pca' && 'pca-mode')}>
+    <div className={cn('app-shell', sidebarOpen && 'sidebar-open')}>
+      <button
+        type="button"
+        className="sidebar-backdrop"
+        aria-hidden={!sidebarOpen}
+        aria-label="Yan menyunu bağla"
+        onClick={() => setSidebarOpen(false)}
+      />
+      <aside className={cn('sidebar', role === 'pca' && 'pca-mode', sidebarOpen && 'open')}>
         <div className="brand">
           <div className="brand-mark"><LogoMark size={42} /></div>
           <div className="brand-text">
-            <strong>Customs Analyzer</strong>
-            <small>{role === 'pca' ? 'PCA Workspace' : 'Gömrük Sistemi'}</small>
+            <strong>Gömrük Analizatoru</strong>
+            <small>{role === 'pca' ? 'PCA Audit Mühiti' : 'Gömrük Sistemi'}</small>
           </div>
+          <button
+            type="button"
+            className="sidebar-close"
+            aria-label="Yan menyunu bağla"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X size={18} />
+          </button>
         </div>
         <nav>
           {nav.map((item, i) => (
             <React.Fragment key={item.to + i}>
               {item.section && <div className="nav-section">{item.section}</div>}
-              <NavLink to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={() => setSidebarOpen(false)}
+              >
                 {item.icon}
                 <span>{item.label}</span>
               </NavLink>
@@ -132,12 +165,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <LogOut size={16} /> Çıxış
           </button>
           <div className="copyright">
-            © {new Date().getFullYear()} Customs Analyzer<br />All Rights Reserved
+            © {new Date().getFullYear()} Gömrük Analizatoru<br />Bütün hüquqlar qorunur
           </div>
         </div>
       </aside>
 
       <header className="header">
+        <button
+          type="button"
+          className="sidebar-toggle"
+          aria-label="Yan menyunu aç"
+          aria-expanded={sidebarOpen}
+          onClick={() => setSidebarOpen((v) => !v)}
+        >
+          <Menu size={20} />
+        </button>
         <div className="spacer" />
 
         {role === 'pca' && (
@@ -147,7 +189,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         <button className="btn btn-secondary btn-sm" onClick={() => setResetConfirmOpen(true)} title="Demo məlumatları ilkin vəziyyətə qaytar">
-          <RefreshCw size={14} /> Demo Reset
+          <RefreshCw size={14} /> Demoyu Sıfırla
         </button>
 
         <div style={{ position: 'relative' }} ref={notifRef}>

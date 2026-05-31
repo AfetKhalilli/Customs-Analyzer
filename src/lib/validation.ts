@@ -5,6 +5,7 @@ import type {
 import {
   ALLOWED_FILE_EXTENSIONS, ALLOWED_MIME_TYPES, EXTENSION_TO_MIME,
   MAX_FILE_SIZE_KB, DOC_REQUIREMENTS, DOCUMENT_TYPES,
+  GOODS_CATEGORY_LABEL, subcategoriesFor,
 } from './constants';
 import { declStep1Schema, declStep3Schema, declStep4Schema } from './schemas';
 import { lookupHs } from './hsCodes';
@@ -90,7 +91,9 @@ const REQUIRED_FIELDS_BY_TYPE: Partial<Record<DocumentTypeCode, string[]>> = {
   CUSTOMS_DECLARATION: ['declarationNumber', 'procedureCode', 'hsCode', 'goodsDescription'],
   PACKING_LIST:        ['packingListNumber', 'packingDate'],
   PAYMENT_RECEIPT:     ['receiptNumber', 'paymentDate', 'amount', 'currency', 'bankName', 'payerName'],
-  SHIPPING_DOCUMENT:   ['shippingDocType', 'shippingDocNumber', 'carrierName', 'loadingDate'],
+  // SHIPPING_DOCUMENT — `estimatedArrival` (Çatma tarixi) is also mandatory.
+  // Cross-field check (arrival ≥ loadingDate) lives below.
+  SHIPPING_DOCUMENT:   ['shippingDocType', 'shippingDocNumber', 'carrierName', 'loadingDate', 'estimatedArrival'],
   CERTIFICATE:         ['certificateType', 'certificateNumber', 'issueDate', 'issuingAuthority'],
 };
 
@@ -232,6 +235,8 @@ export function validateDeclaration(input: FullDeclarationInput): ValidationResu
     totalDeclaredValue: input.totals.totalDeclaredValue,
     totalQuantity: input.totals.totalQuantity,
     unitOfMeasure: input.totals.unitOfMeasure,
+    goodsCategory: input.totals.goodsCategory ?? '',
+    goodsSubcategory: input.totals.goodsSubcategory ?? '',
     hsCode: input.totals.hsCode ?? '',
     originCertificateNo: input.totals.originCertificateNo ?? '',
     additionalNotes: input.totals.additionalNotes ?? '',
@@ -255,6 +260,20 @@ export function validateDeclaration(input: FullDeclarationInput): ValidationResu
   if (input.shipment && input.shipment.grossWeightKg && input.shipment.netWeightKg
       && input.shipment.netWeightKg > input.shipment.grossWeightKg) {
     errors.push(err('NET_GT_GROSS', 'Netto çəki Brutto çəkidən böyük ola bilməz', 'shipment.netWeightKg'));
+  }
+
+  // ── 4b. Cascading goods category × subcategory consistency ────────────────
+  // The chosen subcategory must belong to the chosen parent category.
+  if (input.totals?.goodsCategory && input.totals?.goodsSubcategory) {
+    const allowed = subcategoriesFor(input.totals.goodsCategory);
+    if (allowed.length > 0 && !allowed.includes(input.totals.goodsSubcategory)) {
+      const catLbl = GOODS_CATEGORY_LABEL[input.totals.goodsCategory as keyof typeof GOODS_CATEGORY_LABEL] ?? input.totals.goodsCategory;
+      errors.push(err(
+        'SUBCATEGORY_MISMATCH',
+        `"${input.totals.goodsSubcategory}" alt kateqoriyası "${catLbl}" kateqoriyasına aid deyil`,
+        'totals.goodsSubcategory',
+      ));
+    }
   }
 
   // ── 5. HS category must match the customs department ─────────────────────

@@ -13,6 +13,7 @@ import {
   CUSTOMS_POINTS, COUNTRIES, TRANSPORT_MODES, CURRENCIES, UNITS_OF_MEASURE,
   DOCUMENT_GROUPS, PACKAGE_TYPES, INCOTERMS,
   SHIPPING_DOC_TYPES, CERTIFICATE_TYPES, PROCEDURE_CODES, CONTRACT_TYPES, PAYMENT_TERMS,
+  GOODS_CATEGORY_KEYS, GOODS_CATEGORY_LABEL, subcategoriesFor,
 } from '../../lib/constants';
 import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
@@ -44,7 +45,7 @@ export function DeclarationWizard() {
 
   return (
     <div className="container-narrow">
-      <h1>Yeni Bəyannamə</h1>
+      <h1>Sənəd Əlavə Et</h1>
       <p className="text-muted">Addım {step} / 4</p>
       <div className="stepper">
         <div className={`step ${step === 1 ? 'active' : step > 1 ? 'done' : ''}`}><span className="num">1</span> Növ və Şöbə</div>
@@ -90,14 +91,14 @@ export function DeclarationWizard() {
             const v = validateDeclaration(payload);
             if (!v.ok) {
               setSubmitErrors(v.errors);
-              toast.error(`Bəyannamə təqdim edilə bilməz: ${v.errors.length} səhv`);
+              toast.error(`Sənəd təqdim edilə bilməz: ${v.errors.length} səhv`);
               return;
             }
 
             try {
               const id = addDeclaration(payload);
               setSubmitErrors([]);
-              toast.success('Bəyannamə təqdim edildi');
+              toast.success('Sənəd təqdim edildi');
               navigate(`/declaration/${id}`);
             } catch (e) {
               if (e instanceof ValidationError) {
@@ -131,7 +132,7 @@ function Step1({ initial, onNext }: { initial: any | null; onNext: (d: any) => v
         <div className="card-body">
           <RadioCardsField
             name="kind"
-            label="Bəyannamə növü"
+            label="Sənəd növü"
             required
             options={[
               { value: 'Idxal', title: 'İdxal', description: 'Xaricdən gətirmə' },
@@ -144,7 +145,7 @@ function Step1({ initial, onNext }: { initial: any | null; onNext: (d: any) => v
             <SelectField name="customsPoint" label="Gömrük postu" required options={CUSTOMS_POINTS} />
           </div>
           <div className="form-row cols-2">
-            <DateField name="declarationDate" label="Bəyannamə tarixi" required max={new Date().toISOString().slice(0, 10)} />
+            <DateField name="declarationDate" label="Sənəd tarixi" required max={new Date().toISOString().slice(0, 10)} />
             <TextField name="referenceNumber" label="İstinad nömrəsi (ixtiyari)" />
           </div>
         </div>
@@ -216,10 +217,28 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
     reValidateMode: 'onChange',
     defaultValues: initial ?? {
       currency: 'USD', totalDeclaredValue: 0, totalQuantity: 0,
-      unitOfMeasure: 'ədəd', hsCode: '', originCertificateNo: '', additionalNotes: '',
+      unitOfMeasure: 'ədəd',
+      goodsCategory: '', goodsSubcategory: '',
+      hsCode: '', originCertificateNo: '', additionalNotes: '',
     },
   });
   const values = methods.watch();
+
+  // ── Cascading: when goodsCategory changes, clear the now-invalid subcategory.
+  // Backed by the central GOODS_CATEGORY_SUBCATEGORIES mapping; subcategory list
+  // is fully driven by the selected parent category.
+  const selectedCategory = methods.watch('goodsCategory');
+  const subcategoryOptions = React.useMemo(
+    () => subcategoriesFor(selectedCategory),
+    [selectedCategory],
+  );
+  React.useEffect(() => {
+    const current = methods.getValues('goodsSubcategory');
+    if (current && !subcategoryOptions.includes(current)) {
+      methods.setValue('goodsSubcategory', '', { shouldValidate: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
 
   // Clear stale "submit errors" the moment the user starts editing again —
   // prevents the inline error list from looking permanent after a fix.
@@ -247,18 +266,33 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
         <div className="card-body">
           <div className="form-row cols-3">
             <SelectField name="currency" label="Valyuta" required options={CURRENCIES} />
-            <NumberField name="totalDeclaredValue" label="Ümumi dəyər" required step="0.01" />
+            <NumberField name="totalDeclaredValue" label="Ümumi Bəyan Dəyəri" required step="0.01" />
             <SelectField name="unitOfMeasure" label="Ölçü vahidi" required options={UNITS_OF_MEASURE} />
           </div>
           <div className="form-row cols-2">
-            <NumberField name="totalQuantity" label="Ümumi miqdar" required step="0.01" />
+            <SelectField
+              name="goodsCategory"
+              label="Mal Kateqoriyası"
+              required
+              options={GOODS_CATEGORY_KEYS.map((k) => ({ value: k, label: GOODS_CATEGORY_LABEL[k] }))}
+            />
+            <SelectField
+              name="goodsSubcategory"
+              label="Alt Kateqoriya"
+              required
+              placeholder={selectedCategory ? 'Seçin...' : 'Əvvəlcə kateqoriyanı seçin'}
+              options={subcategoryOptions}
+            />
+          </div>
+          <div className="form-row cols-2">
+            <NumberField name="totalQuantity" label="Ümumi Miqdar" required step="0.01" />
             <HsCodeField name="hsCode" label="HS Kodu" required />
           </div>
           <TextField name="originCertificateNo" label="Mənşə sertifikatı № (ixtiyari)" />
           <TextareaField name="additionalNotes" label="Əlavə qeydlər (ixtiyari)" placeholder="Müfəttişə qeyd və ya kontekst..." />
 
-          <div style={{ marginTop: 16, padding: 16, borderRadius: 10, background: 'var(--n-50)', border: '1px solid var(--n-200)' }}>
-            <h3 style={{ marginBottom: 10 }}>AI Risk Ön Baxış</h3>
+          <div className="wizard-ai-preview">
+            <h3>Süni İntellekt Risk Ön Baxışı</h3>
             <div className="flex items-center gap-3 mb-3">
               <RiskBadge level={aiPreview.riskLevel} score={aiPreview.score} />
               <ChannelPill channel={aiPreview.selectivityChannel} />
@@ -278,7 +312,7 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
 
           {submitErrors.length > 0 && (
             <div className="banner error" style={{ marginTop: 16 }}>
-              <strong>Bəyannamə təqdim edilə bilməz — aşağıdakı səhvləri düzəldin:</strong>
+              <strong>Sənəd təqdim edilə bilməz — aşağıdakı səhvləri düzəldin:</strong>
               <ul style={{ marginTop: 8, paddingLeft: 18 }}>
                 {submitErrors.map((e, i) => (
                   <li key={i}><code>{e.code}</code> — {e.message}{e.field ? ` (${e.field})` : ''}</li>
@@ -290,7 +324,7 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
         <div className="card-footer flex justify-between">
           <button type="button" className="btn btn-secondary" onClick={onBack}>← Geri</button>
           <button type="submit" className="btn btn-success" disabled={submitErrors.length > 0}>
-            Bəyannaməni təqdim et
+            Sənədi Təqdim Et
           </button>
         </div>
       </form>
@@ -368,7 +402,7 @@ function Step2({ entityType, docs, kind, onChange, onBack, onNext }: {
 
         {missingCodes.length > 0 && (
           <div className="banner warning" style={{ marginBottom: 10 }}>
-            <strong>Bu bəyannamə üçün tələb olunan sənədlər çatışmır:</strong>
+            <strong>Bu növ üçün tələb olunan sənədlər çatışmır:</strong>
             <ul style={{ marginTop: 6, paddingLeft: 18 }}>
               {missingCodes.map((c) => (
                 <li key={c}>{DOCUMENT_TYPES.find((t) => t.code === c)?.label ?? c}</li>
@@ -485,7 +519,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
     counterpartyName: 'Qarşı tərəfin adı',
     counterpartyAddress: 'Qarşı tərəfin ünvanı',
     paymentTerms: 'Ödəniş şərtləri',
-    declarationNumber: 'Bəyannamə №',
+    declarationNumber: 'Gömrük Sənədi №',
     procedureCode: 'Prosedur kodu',
     hsCode: 'HS Kodu',
     goodsDescription: 'Malların təsviri',
@@ -500,6 +534,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
     shippingDocNumber: 'Sənəd №',
     carrierName: 'Daşıyıcının adı',
     loadingDate: 'Yükləmə tarixi',
+    estimatedArrival: 'Çatma tarixi',
     certificateType: 'Sertifikat növü',
     certificateNumber: 'Sertifikat №',
     issueDate: 'Verilmə tarixi',
@@ -577,7 +612,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
   );
 }
 
-function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
+export function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
   if (typeCode === 'INVOICE') {
     return (
       <>
@@ -637,7 +672,7 @@ function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
     return (
       <>
         <div className="form-row cols-2">
-          <TextField name="declarationNumber" label="Bəyannamə №" required />
+          <TextField name="declarationNumber" label="Gömrük Sənədi №" required />
           <SelectField name="procedureCode" label="Prosedur kodu" required options={PROCEDURE_CODES} />
         </div>
         <HsCodeField name="hsCode" label="HS Kodu" required />
@@ -686,26 +721,36 @@ function DocumentFields({ typeCode }: { typeCode: DocumentTypeCode }) {
   return null;
 }
 
-// SHIPPING_DOCUMENT — Çatma tarixi (estimatedArrival) cannot be earlier than
-// Yükləmə tarixi (loadingDate). We surface this as a live form error so users
-// see the failure before they hit Save; the same rule lives in validation.ts.
+// SHIPPING_DOCUMENT — Çatma tarixi (estimatedArrival) is mandatory and must
+// be ≥ Yükləmə tarixi (loadingDate). Both the live form layer and the
+// validator (validation.ts → validateDocumentFields) enforce this; the
+// submit path in DocumentForm also re-runs validation as a hard gate.
 function ShippingDocumentFields() {
-  const { watch, setError, clearErrors, formState: { errors } } = useFormContext();
+  const { watch, setError, clearErrors } = useFormContext();
   const loadingDate = watch('loadingDate');
   const estimatedArrival = watch('estimatedArrival');
 
   React.useEffect(() => {
+    // Mandatory presence check — runs the moment loadingDate is present.
+    if (!estimatedArrival || (typeof estimatedArrival === 'string' && estimatedArrival.trim() === '')) {
+      setError('estimatedArrival', {
+        type: 'manual',
+        message: 'Çatma tarixi mütləqdir — boş ola bilməz',
+      });
+      return;
+    }
+    // Order check
     if (loadingDate && estimatedArrival) {
       if (new Date(estimatedArrival) < new Date(loadingDate)) {
         setError('estimatedArrival', {
           type: 'manual',
           message: `Çatma tarixi Yükləmə tarixindən (${loadingDate}) əvvəl ola bilməz`,
         });
-      } else if ((errors as any)?.estimatedArrival?.type === 'manual') {
-        clearErrors('estimatedArrival');
+        return;
       }
     }
-  }, [loadingDate, estimatedArrival, setError, clearErrors, errors]);
+    clearErrors('estimatedArrival');
+  }, [loadingDate, estimatedArrival, setError, clearErrors]);
 
   return (
     <>
@@ -719,8 +764,13 @@ function ShippingDocumentFields() {
       </div>
       <div className="form-row cols-2">
         <DateField name="loadingDate" label="Yükləmə tarixi" required />
-        <DateField name="estimatedArrival" label="Çatma tarixi" min={loadingDate || undefined}
-          hint="Yükləmə tarixindən sonra olmalıdır" />
+        <DateField
+          name="estimatedArrival"
+          label="Çatma tarixi"
+          required
+          min={loadingDate || undefined}
+          hint="Mütləq sahə — Yükləmə tarixindən sonra və ya eyni gündə olmalıdır"
+        />
       </div>
     </>
   );

@@ -77,7 +77,7 @@ export function AnomaliesPage() {
                       <div style={{ fontSize: 13 }}>{a.description}</div>
                       <div style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>
                         {formatDateTime(a.detectedAt)} ({relativeTime(a.detectedAt)})
-                        {a.affectedDeclarationIds.length > 0 && ` · ${a.affectedDeclarationIds.length} bəyannamə təsirlənib`}
+                        {a.affectedDeclarationIds.length > 0 && ` · ${a.affectedDeclarationIds.length} sənəd təsirlənib`}
                       </div>
                     </div>
                     {!a.dismissed && (

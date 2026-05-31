@@ -119,13 +119,13 @@ export function InspectorsPage() {
             <small className="text-muted" style={{ marginTop: 8, display: 'block' }}>Telefon</small>
             <div>{open.phone}</div>
           </div>
-          <h4>Son bəyannamələri</h4>
+          <h4>Son sənədləri</h4>
           {declarations.filter((d) => d.assignedInspectorId === open.id).slice(0, 10).length === 0 ? (
             <p className="text-muted">İş tarixçəsi yoxdur</p>
           ) : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>ID</th><th>Status</th><th>Risk</th><th>Tarix</th></tr></thead>
+                <thead><tr><th>Qeydiyyat №</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th>Qəbul Tarixi</th></tr></thead>
                 <tbody>
                   {declarations.filter((d) => d.assignedInspectorId === open.id).slice(0, 10).map((d) => (
                     <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>

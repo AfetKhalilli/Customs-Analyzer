@@ -1,0 +1,19 @@
+// ============================================================================
+// PCA Customs Audit Platform — Design System
+// ----------------------------------------------------------------------------
+// Single SCSS entry. Imports tokens, base, layout, and component partials in
+// the order: tokens → reset → layout → components → overlays → dashboard →
+// auth → utilities. Built with @use modules (Sass Module System, no @import).
+// ============================================================================
+
+@use 'reset';
+@use 'layout';
+@use 'buttons';
+@use 'forms';
+@use 'cards';
+@use 'tables';
+@use 'badges';
+@use 'overlays';
+@use 'dashboard';
+@use 'auth';
+@use 'utilities';

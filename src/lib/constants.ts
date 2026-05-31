@@ -98,7 +98,7 @@ export const DOCUMENT_TYPES: { code: DocumentTypeCode; label: string; group: Doc
   { code: 'COMMERCIAL_INVOICE',  label: 'Kommersiya invoysu',  group: 'FINANCIAL',    availableTo: ['company'] },
   { code: 'PAYMENT_RECEIPT',     label: 'Ödəniş qəbzi',        group: 'FINANCIAL',    availableTo: ['individual', 'company'] },
   { code: 'CONTRACT',            label: 'Müqavilə',            group: 'LEGAL',        availableTo: ['company'] },
-  { code: 'CUSTOMS_DECLARATION', label: 'Gömrük bəyannaməsi',  group: 'CUSTOMS',      availableTo: ['individual', 'company'] },
+  { code: 'CUSTOMS_DECLARATION', label: 'Gömrük Sənədi',       group: 'CUSTOMS',      availableTo: ['individual', 'company'] },
   { code: 'SHIPPING_DOCUMENT',   label: 'Daşıma sənədi',       group: 'TRANSPORT',    availableTo: ['individual', 'company'] },
   { code: 'PACKING_LIST',        label: 'Qablaşdırma siyahısı',group: 'TRANSPORT',    availableTo: ['individual', 'company'] },
   { code: 'CERTIFICATE',         label: 'Sertifikat',          group: 'CERTIFICATES', availableTo: ['individual', 'company'] },
@@ -195,3 +195,164 @@ export const PCA_RISK_META: Record<PCARiskBand, { bg: string; text: string }> = 
   'Yüksək':  { bg: '#ffedd5', text: '#9a3412' },
   'Kritik':  { bg: '#fee2e2', text: '#991b1b' },
 };
+
+// ============================================================================
+// Mal Kateqoriyaları → Alt Kateqoriyalar (cascading dropdown reference)
+// ----------------------------------------------------------------------------
+// Storage uses the English enum key (FOOD, ELECTRONICS, …) — labels and
+// subcategory lists are presented in Azerbaijani only.
+// ============================================================================
+export type GoodsCategoryKey =
+  | 'FOOD' | 'ELECTRONICS' | 'TEXTILE' | 'CHEMICALS' | 'MACHINERY'
+  | 'MEDICAL' | 'COSMETICS' | 'FURNITURE' | 'AUTOMOTIVE' | 'CONSTRUCTION' | 'OTHER';
+
+export const GOODS_CATEGORY_LABEL: Record<GoodsCategoryKey, string> = {
+  FOOD:         'Qida Məhsulları',
+  ELECTRONICS:  'Elektronika',
+  TEXTILE:      'Tekstil və Geyim',
+  CHEMICALS:    'Kimyəvi Məhsullar',
+  MACHINERY:    'Maşın və Avadanlıq',
+  MEDICAL:      'Tibbi Məhsullar',
+  COSMETICS:    'Kosmetika',
+  FURNITURE:    'Mebel',
+  AUTOMOTIVE:   'Avtomobil Sənayesi',
+  CONSTRUCTION: 'Tikinti Materialları',
+  OTHER:        'Digər',
+};
+
+export const GOODS_CATEGORY_SUBCATEGORIES: Record<GoodsCategoryKey, string[]> = {
+  FOOD: [
+    'Ət və ət məhsulları',
+    'Süd və süd məhsulları',
+    'Taxıl və un məhsulları',
+    'Meyvə və tərəvəz',
+    'Balıq və dəniz məhsulları',
+    'Yağ və bitki yağları',
+    'Şəkər və qənnadı məmulatları',
+    'İçkilər (alkoqolsuz)',
+    'Alkoqollu içkilər',
+    'Konservlər',
+    'Ədviyyat və baharatlar',
+    'Dondurulmuş məhsullar',
+    'Digər qida məhsulları',
+  ],
+  ELECTRONICS: [
+    'Smartfon və mobil cihazlar',
+    'Noutbuk və kompüterlər',
+    'Televizor və displey',
+    'Məişət elektronikası',
+    'Səs avadanlığı',
+    'Foto və video texnika',
+    'Elektrik mühərrikləri',
+    'Yarımkeçirici komponentlər',
+    'Şarj cihazları və adapterlər',
+    'Smartwatch və geyilə bilən cihazlar',
+    'Digər elektronika',
+  ],
+  TEXTILE: [
+    'Pambıq parça',
+    'Sintetik parça',
+    'Yun məhsulları',
+    'Hazır geyim (kişi)',
+    'Hazır geyim (qadın)',
+    'Uşaq geyimi',
+    'Ayaqqabı',
+    'Çantalar və aksessuarlar',
+    'Ev tekstili (yataq dəstləri, pərdə)',
+    'Digər tekstil',
+  ],
+  CHEMICALS: [
+    'Gübrələr',
+    'Pestisidlər',
+    'Sənaye kimyəvi maddələri',
+    'Boya və lak',
+    'Yapışdırıcılar',
+    'Plastik xammal',
+    'Rezin məhsulları',
+    'Yanacaq əlavələri',
+    'Digər kimyəvi maddələr',
+  ],
+  MACHINERY: [
+    'Kənd təsərrüfatı maşınları',
+    'İnşaat avadanlığı',
+    'Sənaye nasosları',
+    'Kompressor və ventilyator',
+    'CNC və emal maşınları',
+    'Generator və elektrik avadanlığı',
+    'Qaynaq avadanlığı',
+    'Yükqaldırıcı texnika',
+    'Digər maşın və avadanlıq',
+  ],
+  MEDICAL: [
+    'Dərman preparatları',
+    'Tibbi cihazlar',
+    'Cərrahiyyə alətləri',
+    'Laboratoriya avadanlığı',
+    'Diaqnostika cihazları',
+    'Sağlamlıq məhsulları (vitaminlər)',
+    'Tibbi sərfiyyat materialları',
+    'Digər tibbi məhsullar',
+  ],
+  COSMETICS: [
+    'Üz qulluğu məhsulları',
+    'Saç qulluğu məhsulları',
+    'Dəriyə qulluq kremləri',
+    'Parfüm və ətirlər',
+    'Makiyaj məhsulları',
+    'Günəşdən qoruyucu',
+    'Diş qulluğu məhsulları',
+    'Digər kosmetika',
+  ],
+  FURNITURE: [
+    'Oturma mebeli (divan, kreslo)',
+    'Yataq otağı mebeli',
+    'Mətbəx mebeli',
+    'Ofis mebeli',
+    'Uşaq mebeli',
+    'Bağ və veranda mebeli',
+    'Dekorativ aksesuarlar',
+    'Digər mebel',
+  ],
+  AUTOMOTIVE: [
+    'Mühərrik hissələri',
+    'Əyləc sistemi hissələri',
+    'Asqı sistemi hissələri',
+    'Elektrik sistemi komponentləri',
+    'Kuzov hissələri',
+    'Şina və disklər',
+    'Yağlama materialları',
+    'Avtomobil aksesuarları',
+    'Digər avtomobil hissələri',
+  ],
+  CONSTRUCTION: [
+    'Sement və tikinti qarışıqları',
+    'Metal konstruksiyalar',
+    'Şüşə və pəncərə sistemləri',
+    'Keramika və kafel',
+    'Boru və sanitar avadanlıq',
+    'Elektrik kabel və lövhələr',
+    'İzolyasiya materialları',
+    'Taxta və ağac məhsulları',
+    'Digər tikinti materialları',
+  ],
+  OTHER: [
+    'Sənət əsərləri',
+    'Kitab və çap materialları',
+    'Oyuncaq və hobbi məhsulları',
+    'İdman avadanlığı',
+    'Ev təmizlik məhsulları',
+    'Heyvan yemi',
+    'Digər',
+  ],
+};
+
+export const GOODS_CATEGORY_KEYS: GoodsCategoryKey[] = [
+  'FOOD', 'ELECTRONICS', 'TEXTILE', 'CHEMICALS', 'MACHINERY',
+  'MEDICAL', 'COSMETICS', 'FURNITURE', 'AUTOMOTIVE', 'CONSTRUCTION', 'OTHER',
+];
+
+export function subcategoriesFor(category?: GoodsCategoryKey | string | null): string[] {
+  if (!category) return [];
+  const k = category as GoodsCategoryKey;
+  return GOODS_CATEGORY_SUBCATEGORIES[k] ?? [];
+}

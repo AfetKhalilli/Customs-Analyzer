@@ -6,7 +6,8 @@ import { COUNTRY_RISK, BROKER_PROFILES, RISK_RULES } from '../../lib/referenceDa
 import { HS_CODES, HS_CATEGORIES } from '../../lib/hsCodes';
 import { CATEGORY_PRICE_BANDS } from '../../lib/pricingReference';
 import { Save } from 'lucide-react';
-import type { AIScoreBand } from '../../types';
+import { RISK_LEVEL_LABEL, CHANNEL_LABEL } from '../../lib/i18n';
+import type { AIScoreBand, RiskLevel } from '../../types';
 
 export function ReferenceDataPage() {
   const thresholds = useDataStore((s) => s.thresholds);
@@ -40,7 +41,7 @@ export function ReferenceDataPage() {
           <div className="card-body" style={{ padding: 0 }}>
             <table className="table">
               <thead>
-                <tr><th>ID</th><th>Kod</th><th>Ad</th><th>Kateqoriya</th><th className="cell-num">Çəki</th><th>Şiddət</th><th>Aktiv</th></tr>
+                <tr><th>Qayda №</th><th>Kod</th><th>Ad</th><th>Kateqoriya</th><th className="cell-num">Çəki</th><th>Şiddət</th><th>Aktiv</th></tr>
               </thead>
               <tbody>
                 {RISK_RULES.map((r) => (
@@ -53,7 +54,7 @@ export function ReferenceDataPage() {
                     </td>
                     <td>{r.category}</td>
                     <td className="cell-num"><b>+{r.weight}</b></td>
-                    <td>{r.severity}</td>
+                    <td>{({ critical: 'Kritik', warning: 'Xəbərdarlıq', info: 'Məlumat' } as Record<string, string>)[r.severity] ?? r.severity}</td>
                     <td>{r.active ? '✓' : '×'}</td>
                   </tr>
                 ))}
@@ -78,13 +79,13 @@ export function ReferenceDataPage() {
           <table className="table table-dense">
             <thead>
               <tr>
-                <th>HS Kodu</th><th>Mal</th><th>Kateqoriya</th>
-                <th className="cell-num">Tariff %</th>
-                <th className="cell-num">VAT %</th>
-                <th>Risk</th>
+                <th>HS Kodu</th><th>Mal Adı</th><th>Kateqoriya</th>
+                <th className="cell-num">Rüsum Dərəcəsi %</th>
+                <th className="cell-num">ƏDV %</th>
+                <th>Risk Səviyyəsi</th>
                 <th>Vahid</th>
-                <th className="cell-num">Min ₼</th>
-                <th className="cell-num">Maks ₼</th>
+                <th className="cell-num">Min Qiymət ₼</th>
+                <th className="cell-num">Maks Qiymət ₼</th>
               </tr>
             </thead>
             <tbody>
@@ -95,7 +96,7 @@ export function ReferenceDataPage() {
                   <td>{h.category}</td>
                   <td className="cell-num">{h.tariffRate}%</td>
                   <td className="cell-num">{h.vatRate}%</td>
-                  <td>{h.riskTier}</td>
+                  <td>{({ low: 'Aşağı', medium: 'Orta', high: 'Yüksək' } as Record<string, string>)[h.riskTier] ?? h.riskTier}</td>
                   <td>{h.unit}</td>
                   <td className="cell-num">{h.pricing.expectedMinAZN}</td>
                   <td className="cell-num">{h.pricing.expectedMaxAZN}</td>
@@ -115,7 +116,7 @@ export function ReferenceDataPage() {
                 <tr key={c.code} style={{ cursor: 'default' }}>
                   <td className="mono">{c.code}</td>
                   <td><b>{c.name}</b></td>
-                  <td>{c.tier}</td>
+                  <td>{({ low: 'Aşağı', medium: 'Orta', high: 'Yüksək' } as Record<string, string>)[c.tier] ?? c.tier}</td>
                   <td>{c.sanctioned ? 'Bəli' : 'Xeyr'}</td>
                   <td>{c.reason}</td>
                 </tr>
@@ -162,7 +163,7 @@ export function ReferenceDataPage() {
       {tab === 'brokers' && (
         <div className="card no-pad">
           <table className="table table-dense">
-            <thead><tr><th>ID</th><th>Ad</th><th>Lisenziya</th><th>Qeydiyyat</th><th>Reytinq</th><th className="cell-num">Aşkarlanmış pozuntular</th></tr></thead>
+            <thead><tr><th>Broker №</th><th>Ad</th><th>Lisenziya</th><th>Qeydiyyat</th><th>Reytinq</th><th className="cell-num">Aşkarlanmış Pozuntular</th></tr></thead>
             <tbody>
               {BROKER_PROFILES.map((b) => (
                 <tr key={b.id} style={{ cursor: 'default' }}>
@@ -195,15 +196,15 @@ function ThresholdEditor({ bands, slaHoursReview, highValueAZN, lowUnitPriceAZN,
   return (
     <div className="card">
       <div className="card-body">
-        <h3>Skor → Risk səviyyəsi → Seçicilik kanalı</h3>
-        <p className="text-muted text-sm">Bu hədlər bütün AI qiymətləndirməsinə tətbiq olunur.</p>
+        <h3>Risk Skoru → Risk Səviyyəsi → Seçicilik Dəhlizi</h3>
+        <p className="text-muted text-sm">Bu hədlər bütün süni intellekt qiymətləndirməsinə tətbiq olunur.</p>
         <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="table">
-            <thead><tr><th>Səviyyə</th><th>Min</th><th>Max</th><th>Kanal</th><th>Etiket</th></tr></thead>
+            <thead><tr><th>Risk Səviyyəsi</th><th>Minimum Bal</th><th>Maksimum Bal</th><th>Seçicilik Dəhlizi</th><th>Etiket</th></tr></thead>
             <tbody>
               {b.map((band, i) => (
                 <tr key={band.band} style={{ cursor: 'default' }}>
-                  <td><b>{band.band}</b></td>
+                  <td><b>{RISK_LEVEL_LABEL[band.band as RiskLevel] ?? band.band}</b></td>
                   <td>
                     <input className="input" type="number" value={band.min}
                       onChange={(e) => setB(b.map((x, j) => j === i ? { ...x, min: Number(e.target.value) } : x))} style={{ width: 90, height: 32 }} />
@@ -214,10 +215,10 @@ function ThresholdEditor({ bands, slaHoursReview, highValueAZN, lowUnitPriceAZN,
                   </td>
                   <td>
                     <select className="select" value={band.channel}
-                      onChange={(e) => setB(b.map((x, j) => j === i ? { ...x, channel: e.target.value as any } : x))} style={{ width: 130, height: 32 }}>
-                      <option value="GREEN">GREEN</option>
-                      <option value="YELLOW">YELLOW</option>
-                      <option value="RED">RED</option>
+                      onChange={(e) => setB(b.map((x, j) => j === i ? { ...x, channel: e.target.value as any } : x))} style={{ width: 150, height: 32 }}>
+                      <option value="GREEN">{CHANNEL_LABEL.GREEN}</option>
+                      <option value="YELLOW">{CHANNEL_LABEL.YELLOW}</option>
+                      <option value="RED">{CHANNEL_LABEL.RED}</option>
                     </select>
                   </td>
                   <td>{band.label}</td>

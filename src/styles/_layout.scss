@@ -1,0 +1,500 @@
+// ============================================================================
+// App Shell — Sidebar / Header / Main / Containers
+// ============================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+.app-shell {
+  display: grid;
+  grid-template-columns: $sidebar-w 1fr;
+  grid-template-rows: $header-h 1fr;
+  grid-template-areas:
+    'sidebar header'
+    'sidebar main';
+  height: 100vh;
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────────
+// Government-grade enterprise sidebar with horizontal brand gradient.
+// Active item gets a strong solid pill, hover gets a subtle translucent wash,
+// all transitions glide at 220ms for an unhurried, polished feel.
+$nav-text-soft:   rgba(255, 255, 255, 0.78);
+$nav-text-mute:   rgba(255, 255, 255, 0.62);
+$nav-hover-bg:    rgba(255, 255, 255, 0.10);
+$nav-hover-bd:    rgba(255, 255, 255, 0.16);
+$nav-active-bg2:  rgba(255, 255, 255, 0.18);
+$nav-active-bd2:  rgba(255, 255, 255, 0.30);
+$nav-divider:     rgba(255, 255, 255, 0.14);
+
+.sidebar {
+  grid-area: sidebar;
+  background: linear-gradient(90deg, #1f47a5 0%, #5487ff 100%);
+  padding: $space-5 $space-4 $space-4;
+  overflow-y: auto;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: $z-sidebar;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  // Subtle inner highlight on the right edge for layered depth
+  &::after {
+    content: '';
+    position: absolute; inset: 0 0 0 auto;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.20), transparent);
+    pointer-events: none;
+  }
+
+  // Custom scrollbar — keeps the rail discreet on dark gradient
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+  }
+
+  // ── Brand block ────────────────────────────────────────────────────────────
+  .brand {
+    display: flex; align-items: center; gap: $space-3;
+    padding: 0 $space-1 $space-5;
+    border-bottom: 1px solid $nav-divider;
+    margin-bottom: $space-4;
+    position: relative;
+  }
+  .brand-mark {
+    width: 44px; height: 44px;
+    border-radius: $radius-md;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+                0 6px 14px rgba(11, 25, 54, 0.25);
+    backdrop-filter: blur(6px);
+  }
+  .brand-mark img,
+  .brand-mark svg {
+    width: 30px; height: 30px;
+  }
+  .brand-text {
+    min-width: 0;
+    flex: 1;
+  }
+  .brand-text strong {
+    display: block;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: $tracking-snug;
+    line-height: 1.15;
+    text-shadow: 0 1px 1px rgba(11, 25, 54, 0.18);
+  }
+  .brand-text small {
+    color: $nav-text-mute;
+    font-size: 10.5px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 600;
+    display: block;
+    margin-top: 2px;
+  }
+
+  // ── Mobile close button — hidden on desktop ───────────────────────────────
+  .sidebar-close {
+    display: none;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    width: 32px; height: 32px;
+    border-radius: $radius-sm;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 220ms ease, transform 220ms ease;
+
+    &:hover { background: rgba(255, 255, 255, 0.18); }
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.40);
+    }
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  nav {
+    display: flex; flex-direction: column;
+    gap: 3px;
+    flex: 1;
+
+    .nav-section {
+      padding: $space-5 $space-3 $space-2;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: $nav-text-mute;
+      font-weight: 700;
+    }
+
+    a {
+      display: flex; align-items: center; gap: $space-3;
+      padding: 11px $space-3;
+      border-radius: $radius-sm;
+      color: $nav-text-soft;
+      font-weight: 500;
+      font-size: $fs-md;
+      text-decoration: none;
+      position: relative;
+      border: 1px solid transparent;
+      transition: background 240ms ease, color 240ms ease,
+                  border-color 240ms ease, transform 220ms ease,
+                  box-shadow 240ms ease;
+
+      // Whole-row affordance — gives a measurable, tactile target
+      &:hover {
+        background: $nav-hover-bg;
+        border-color: $nav-hover-bd;
+        color: #ffffff;
+        transform: translateX(2px);
+        text-decoration: none;
+      }
+
+      &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.40);
+        border-color: rgba(255, 255, 255, 0.30);
+      }
+
+      &.active {
+        background: $nav-active-bg2;
+        border-color: $nav-active-bd2;
+        color: #ffffff;
+        font-weight: 600;
+        box-shadow: 0 6px 18px rgba(11, 25, 54, 0.18),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+
+        // Crisp left accent bar — government formality
+        &::before {
+          content: '';
+          position: absolute;
+          left: -$space-4;
+          top: 8px; bottom: 8px;
+          width: 3px;
+          background: #ffffff;
+          border-radius: 0 3px 3px 0;
+          box-shadow: 0 0 14px rgba(255, 255, 255, 0.55);
+        }
+      }
+
+      svg {
+        width: 18px; height: 18px;
+        flex-shrink: 0;
+        opacity: 0.92;
+        transition: transform 220ms ease, opacity 220ms ease;
+      }
+      &:hover svg { transform: scale(1.06); }
+      &.active svg { opacity: 1; }
+
+      span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  // PCA workspace — subtle violet shift on the same gradient base
+  &.pca-mode {
+    background: linear-gradient(90deg, #382f8a 0%, #7c3aed 100%);
+
+    nav a.active::before {
+      background: #ffffff;
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.55);
+    }
+  }
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: $space-4;
+  border-top: 1px solid $nav-divider;
+
+  .logout-btn {
+    display: flex; align-items: center; justify-content: center; gap: $space-2;
+    padding: 10px $space-3;
+    border-radius: $radius-sm;
+    background: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    font-weight: 600;
+    font-size: 13px;
+    width: 100%;
+    transition: background 220ms ease, border-color 220ms ease,
+                transform 220ms ease;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 99, 99, 0.22);
+      border-color: rgba(255, 255, 255, 0.34);
+      transform: translateY(-1px);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.40);
+    }
+  }
+  .copyright {
+    text-align: center;
+    padding-top: $space-3;
+    font-size: 10.5px;
+    color: $nav-text-mute;
+    line-height: 1.65;
+    letter-spacing: 0.02em;
+  }
+}
+
+// ── Mobile drawer backdrop ────────────────────────────────────────────────
+// Renders only when .app-shell.sidebar-open is set; hidden on desktop via the
+// responsive block below. Behaves as an inert button for tap-to-close.
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 25, 54, 0.45);
+  backdrop-filter: blur(2px);
+  border: none;
+  padding: 0;
+  z-index: $z-sidebar - 1;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+// ── Header hamburger — desktop hidden, mobile visible ─────────────────────
+.sidebar-toggle {
+  display: none;
+  width: 40px; height: 40px;
+  border-radius: $radius-sm;
+  border: 1px solid $border-300;
+  background: $bg-card;
+  color: $text-700;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 220ms ease, color 220ms ease, border-color 220ms ease;
+
+  &:hover {
+    background: $brand-50;
+    color: $brand-700;
+    border-color: rgba($brand-600, 0.30);
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($brand-500, 0.30);
+  }
+}
+
+// ── Header ──────────────────────────────────────────────────────────────────
+.header {
+  grid-area: header;
+  background: $bg-card;
+  border-bottom: 1px solid $border-300;
+  display: flex; align-items: center;
+  padding: 0 $space-7;
+  gap: $space-3;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+  z-index: $z-header;
+  position: relative;
+
+  .spacer { flex: 1; }
+}
+
+.header-action {
+  position: relative;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid $border-300;
+  background: $bg-card;
+  display: grid; place-items: center;
+  color: $text-600;
+  transition: all $dur-fast ease;
+  cursor: pointer;
+  &:hover {
+    background: $brand-50;
+    color: $brand-700;
+    border-color: rgba($brand-600, 0.30);
+  }
+  .badge-dot {
+    position: absolute;
+    top: -3px; right: -3px;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: $danger-600;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    border: 2px solid $bg-card;
+    box-shadow: 0 2px 4px rgba($danger-600, 0.30);
+  }
+}
+
+// ── User trigger (top-right) ────────────────────────────────────────────────
+.user-trigger {
+  display: flex; align-items: center; gap: $space-3;
+  padding: 5px $space-3 5px 5px;
+  border-radius: $radius-sm;
+  background: $bg-card;
+  border: 1px solid $border-300;
+  cursor: pointer;
+  transition: all $dur-fast ease;
+  &:hover {
+    background: $brand-50;
+    border-color: $brand-100;
+  }
+  .name {
+    font-size: $fs-md;
+    font-weight: 600;
+    color: $text-900;
+    line-height: 1.2;
+  }
+  small {
+    font-size: 11.5px;
+    color: $text-500;
+    display: block;
+    line-height: 1.2;
+    margin-top: 1px;
+  }
+}
+
+// ── Main content area ───────────────────────────────────────────────────────
+.main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: $space-7 $space-8;
+  background: $bg-app;
+}
+
+.container-narrow {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+// ── Page header / section header ────────────────────────────────────────────
+.section-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: $space-6;
+  gap: $space-3;
+  flex-wrap: wrap;
+
+  h1, h2 { margin: 0; }
+  h1 {
+    font-size: $fs-3xl;
+    font-weight: 700;
+    letter-spacing: $tracking-tight;
+    color: $text-900;
+  }
+  h2 { font-size: $fs-2xl; }
+  p {
+    margin: 6px 0 0;
+    color: $text-500;
+    font-size: $fs-md;
+  }
+}
+
+.page-hero {
+  display: flex; align-items: center; gap: $space-4;
+  margin-bottom: $space-6;
+  padding: $space-5 $space-6;
+  background: $bg-card;
+  border: 1px solid $border-300;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-xs;
+  position: relative;
+  overflow: hidden;
+
+  // Top-edge brand accent
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: $grad-accent-line;
+  }
+
+  .hero-icon {
+    width: 52px; height: 52px;
+    border-radius: $radius-md;
+    background: $grad-brand;
+    color: white;
+    display: grid; place-items: center;
+    box-shadow: 0 8px 22px rgba($brand-700, 0.28);
+    flex-shrink: 0;
+    svg { width: 26px; height: 26px; }
+  }
+
+  // Compact, no-frame variant for inner pages
+  &.bare {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: $space-5;
+    &::before { display: none; }
+  }
+}
+
+.divider {
+  height: 1px;
+  background: $border-300;
+  margin: $space-5 0;
+}
+
+// ── Responsive collapse ─────────────────────────────────────────────────────
+// Tablet (≤ lg breakpoint): sidebar collapses into a slide-in drawer.
+@include bp('max-lg') {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'main';
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    box-shadow: 24px 0 48px rgba(11, 25, 54, 0.28);
+    z-index: $z-modal;
+
+    .sidebar-close { display: inline-flex; }
+  }
+
+  .app-shell.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .app-shell.sidebar-open .sidebar-backdrop {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-toggle { display: inline-flex; }
+  .header { padding: 0 $space-5; }
+}
+
+@include bp('max-md') {
+  .main { padding: $space-4; }
+  .header { padding: 0 $space-4; }
+  .sidebar { width: 88vw; max-width: 320px; }
+}
+
+// Respect reduced-motion users — disable slide & micro-animations
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar a,
+  .sidebar-toggle,
+  .sidebar-backdrop,
+  .sidebar-footer .logout-btn { transition: none !important; }
+  .sidebar a:hover { transform: none !important; }
+}

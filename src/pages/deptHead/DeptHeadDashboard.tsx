@@ -112,7 +112,7 @@ export function DeptHeadDashboard() {
               <div className="table-wrap">
                 <table className="table">
                   <thead>
-                    <tr><th>ID</th><th>Sahib</th><th>Status</th><th>Risk</th><th>Müfəttiş</th><th>Tarix</th></tr>
+                    <tr><th>Qeydiyyat №</th><th>Sahib</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th>Təyin edilmiş Müfəttiş</th><th>Qəbul Tarixi</th></tr>
                   </thead>
                   <tbody>
                     {activeDecls.map((d) => {

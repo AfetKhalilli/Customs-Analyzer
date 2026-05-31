@@ -1,0 +1,74 @@
+// ============================================================================
+// Utility classes — small, single-purpose helpers
+// ============================================================================
+
+@use 'tokens' as *;
+
+// ── Flexbox helpers ────────────────────────────────────────────────────────
+.flex          { display: flex; }
+.flex-1        { flex: 1; }
+.flex-col      { flex-direction: column; }
+.items-center  { align-items: center; }
+.items-start   { align-items: flex-start; }
+.items-end     { align-items: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-center  { justify-content: center; }
+.justify-end     { justify-content: flex-end; }
+
+// ── Gap (matches token scale) ───────────────────────────────────────────────
+.gap-1 { gap: $space-1; }
+.gap-2 { gap: $space-2; }
+.gap-3 { gap: $space-3; }
+.gap-4 { gap: $space-4; }
+.gap-5 { gap: $space-5; }
+.gap-6 { gap: $space-6; }
+
+// ── Margin top/bottom ──────────────────────────────────────────────────────
+.mt-1 { margin-top: $space-1; }
+.mt-2 { margin-top: $space-2; }
+.mt-3 { margin-top: $space-3; }
+.mt-4 { margin-top: $space-4; }
+.mt-5 { margin-top: $space-5; }
+.mt-6 { margin-top: $space-6; }
+.mt-7 { margin-top: $space-7; }
+
+.mb-1 { margin-bottom: $space-1; }
+.mb-2 { margin-bottom: $space-2; }
+.mb-3 { margin-bottom: $space-3; }
+.mb-4 { margin-bottom: $space-4; }
+.mb-5 { margin-bottom: $space-5; }
+.mb-6 { margin-bottom: $space-6; }
+.mb-7 { margin-bottom: $space-7; }
+
+// ── Text helpers ───────────────────────────────────────────────────────────
+.text-muted    { color: $text-500; }
+.text-default  { color: $text-700; }
+.text-strong   { color: $text-900; }
+.text-right    { text-align: right; }
+.text-center   { text-align: center; }
+.text-left     { text-align: left; }
+.text-sm       { font-size: $fs-sm; }
+.text-md       { font-size: $fs-md; }
+.text-lg       { font-size: $fs-lg; }
+.font-bold     { font-weight: 700; }
+.font-medium   { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-mono     { font-family: $font-mono; }
+
+// ── Sizing ─────────────────────────────────────────────────────────────────
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+// ── Visibility ─────────────────────────────────────────────────────────────
+.hidden        { display: none !important; }
+.invisible     { visibility: hidden; }
+.cursor-pointer{ cursor: pointer; }
+.cursor-default{ cursor: default; }
+
+// ── Status text colors (utilities for inline state) ────────────────────────
+.tc-info     { color: $brand-700; }
+.tc-success  { color: $success-600; }
+.tc-warning  { color: $warning-600; }
+.tc-danger   { color: $danger-600; }
+.tc-violet   { color: $accent-violet; }
+.tc-orange   { color: $accent-orange; }

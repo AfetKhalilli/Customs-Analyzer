@@ -1,0 +1,146 @@
+// ============================================================================
+// Reset + Base Typography
+// ============================================================================
+
+@use 'tokens' as *;
+
+// ── Token bridge ────────────────────────────────────────────────────────────
+// Expose design tokens as CSS custom properties so inline `style={{ ... }}`
+// references like `var(--n-500)` or `var(--brand-700)` resolve correctly.
+// This is the single source of truth for runtime-readable token values.
+:root {
+  --n-0:        #{$neutral-0};
+  --n-50:       #{$neutral-50};
+  --n-100:      #{$neutral-100};
+  --n-200:      #{$neutral-200};
+  --n-300:      #{$neutral-300};
+  --n-400:      #{$neutral-400};
+  --n-500:      #{$text-500};
+  --n-600:      #{$text-600};
+  --n-700:      #{$text-700};
+  --n-800:      #{$text-800};
+  --n-900:      #{$text-900};
+
+  --brand-50:   #{$brand-50};
+  --brand-100:  #{$brand-100};
+  --brand-500:  #{$brand-500};
+  --brand-600:  #{$brand-600};
+  --brand-700:  #{$brand-700};
+
+  --shadow-xs:  #{$shadow-xs};
+  --shadow-sm:  #{$shadow-sm};
+  --shadow-md:  #{$shadow-md};
+  --shadow-lg:  #{$shadow-lg};
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: $font-sans;
+  font-size: $fs-base;
+  line-height: $lh-base;
+  color: $text-900;
+  background: $bg-app;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: $brand-600;
+  text-decoration: none;
+  transition: color $dur-fast ease;
+  &:hover { color: $brand-700; text-decoration: underline; }
+}
+
+// Heading scale — clear hierarchy, government-grade restraint
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 $space-2;
+  font-weight: 700;
+  color: $text-900;
+  letter-spacing: $tracking-snug;
+  line-height: $lh-tight;
+}
+h1 { font-size: $fs-3xl; letter-spacing: $tracking-tight; }
+h2 { font-size: $fs-2xl; }
+h3 { font-size: $fs-xl; }
+h4 { font-size: $fs-md; }
+h5, h6 { font-size: $fs-base; }
+
+p {
+  margin: 0 0 $space-2;
+  line-height: $lh-base;
+  color: $text-600;
+}
+
+small {
+  color: $text-500;
+  font-size: $fs-sm;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+code, kbd, pre, samp, .mono, .font-mono {
+  font-family: $font-mono;
+}
+
+// Selection
+::selection {
+  background: $brand-100;
+  color: $brand-700;
+}
+
+// Global keyboard focus
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba($brand-500, 0.30);
+  border-radius: $radius-sm;
+}
+
+// Custom scrollbar (WebKit)
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: $neutral-200;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: $neutral-300;
+  background-clip: content-box;
+}
+
+// ── Global motion primitives ────────────────────────────────────────────────
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulseHalo {
+  0%, 100% { box-shadow: 0 0 0 0 rgba($brand-600, 0.22); }
+  50%      { box-shadow: 0 0 0 6px rgba($brand-600, 0); }
+}
+
+.fade-in     { animation: fadeIn $dur-slow $ease-out both; }
+.slide-up-in { animation: fadeSlideUp $dur-slow $ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

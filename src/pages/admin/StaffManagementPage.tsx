@@ -186,8 +186,8 @@ export function StaffManagementPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Ad</th><th>Rol</th><th>FIN</th><th>Şöbə</th><th>E-poçt</th><th>Status</th>
-                      <th className="cell-actions">Əməllər</th>
+                      <th>Ad Soyad</th><th>Vəzifə</th><th>FİN</th><th>Şöbə</th><th>E-poçt</th><th>Cari Vəziyyət</th>
+                      <th className="cell-actions">Əməliyyatlar</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -1,0 +1,179 @@
+// ============================================================================
+// Badges, Role Chips, Channel Pills, Banners, Read-only marks
+// ============================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+// ── Generic badge (status, count, label) ────────────────────────────────────
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: $radius-pill;
+  white-space: nowrap;
+  letter-spacing: $tracking-normal;
+  line-height: 1.2;
+  border: 1px solid transparent;
+
+  // Dot indicator prefix
+  &.dot::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 6px;
+    opacity: 0.9;
+  }
+
+  // Named tri-tone variants — pair with `.badge`
+  &.info     { @include status-tone(info);    }
+  &.success  { @include status-tone(success); }
+  &.warning  { @include status-tone(warning); }
+  &.danger   { @include status-tone(danger);  }
+  &.purple   { @include status-tone(purple);  }
+  &.orange   { @include status-tone(orange);  }
+  &.neutral  { @include status-tone(neutral); }
+
+  // Variant: bigger / table-leading badge
+  &.lg {
+    padding: 5px 13px;
+    font-size: $fs-sm;
+  }
+}
+
+// ── Role chip ──────────────────────────────────────────────────────────────
+.role-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: $radius-sm;
+  font-size: $fs-sm;
+  font-weight: 600;
+  background: $brand-50;
+  color: $brand-700;
+  border: 1px solid rgba($brand-600, 0.18);
+}
+
+// ── Channel pills (Green/Yellow/Red selectivity corridor) ───────────────────
+.channel-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  border-radius: $radius-pill;
+  font-size: $fs-sm;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+
+  &::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.95;
+  }
+
+  &.GREEN {
+    background: $success-100;
+    color: $success-600;
+    border-color: rgba($success-600, 0.22);
+    &::before { box-shadow: 0 0 0 3px rgba($success-600, 0.18); }
+  }
+  &.YELLOW {
+    background: $warning-100;
+    color: $warning-600;
+    border-color: rgba($warning-600, 0.22);
+    &::before { box-shadow: 0 0 0 3px rgba($warning-600, 0.20); }
+  }
+  &.RED {
+    background: $danger-100;
+    color: $danger-600;
+    border-color: rgba($danger-600, 0.24);
+    &::before { box-shadow: 0 0 0 3px rgba($danger-600, 0.22); }
+  }
+}
+
+// ── Banner (info/warning/error/success contextual block) ───────────────────
+.banner {
+  padding: $space-3 $space-4;
+  border-radius: $radius-md;
+  display: flex; gap: $space-3;
+  align-items: flex-start;
+  margin-bottom: $space-4;
+  font-size: $fs-md;
+  border: 1px solid transparent;
+  position: relative;
+
+  > svg { flex-shrink: 0; margin-top: 2px; }
+  .b-body { flex: 1; min-width: 0; }
+  .b-title {
+    font-weight: 700;
+    margin-bottom: 3px;
+    color: inherit;
+  }
+  ul { margin: 6px 0 0; padding-left: $space-5; }
+  code {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-family: $font-mono;
+  }
+
+  &.info {
+    background: $brand-50;
+    color: $brand-700;
+    border-color: rgba($brand-600, 0.20);
+    border-left: 4px solid $brand-600;
+  }
+  &.warning {
+    background: $warning-50;
+    color: $warning-600;
+    border-color: rgba($warning-600, 0.22);
+    border-left: 4px solid $warning-600;
+  }
+  &.error {
+    background: $danger-50;
+    color: $danger-600;
+    border-color: rgba($danger-600, 0.22);
+    border-left: 4px solid $danger-600;
+  }
+  &.success {
+    background: $success-50;
+    color: $success-600;
+    border-color: rgba($success-600, 0.22);
+    border-left: 4px solid $success-600;
+  }
+}
+
+// ── Read-only / view-mode pill (PCA auditor) ────────────────────────────────
+.readonly-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  border-radius: $radius-sm;
+  background: rgba($accent-violet, 0.12);
+  color: $accent-violet;
+  font-size: $fs-sm;
+  font-weight: 600;
+  border: 1px solid rgba($accent-violet, 0.26);
+  svg { width: 14px; height: 14px; }
+}
+
+// ── Avatar (user initials circle) ───────────────────────────────────────────
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: $grad-brand;
+  color: white;
+  font-weight: 700;
+  font-size: $fs-md;
+  display: grid; place-items: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba($brand-700, 0.25);
+  letter-spacing: 0;
+  border: 2px solid $bg-card;
+
+  &.sm { width: 28px; height: 28px; font-size: 11px; border-width: 1.5px; }
+  &.lg { width: 60px; height: 60px; font-size: 20px; }
+}

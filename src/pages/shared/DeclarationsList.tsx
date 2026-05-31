@@ -62,11 +62,11 @@ export function DeclarationsList() {
   };
 
   const titleByRole: Record<string, string> = {
-    user: 'Bəyannamələrim',
-    inspector: 'Mənə Təyin Olunmuş Bəyannamələr',
-    departmentHead: 'Şöbə Bəyannamələri',
-    boss: 'Bütün Bəyannamələr',
-    pca: 'Audit üçün Bəyannamələr',
+    user: 'Sənədlərim',
+    inspector: 'Mənə Təyin Olunmuş Sənədlər',
+    departmentHead: 'Şöbə Sənədləri',
+    boss: 'Bütün Sənədlər',
+    pca: 'Audit üçün Sənədlər',
   };
 
   return (
@@ -81,10 +81,10 @@ export function DeclarationsList() {
             <input className="input search" placeholder="ID, sahib və ya istinad ilə axtar..."
               value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             <select className="select" value={kindFilter} onChange={(e) => { setKindFilter(e.target.value); setPage(1); }}>
-              <option value="">Bütün bəyannamə növləri</option>
-              <option value="Idxal">İdxal Bəyannaməsi</option>
-              <option value="Ixrac">İxrac Bəyannaməsi</option>
-              <option value="Tranzit">Tranzit Bəyannaməsi</option>
+              <option value="">Bütün sənəd növləri</option>
+              <option value="Idxal">İdxal Sənədi</option>
+              <option value="Ixrac">İxrac Sənədi</option>
+              <option value="Tranzit">Tranzit Sənədi</option>
             </select>
             {(user.role === 'boss' || user.role === 'pca') && (
               <select className="select" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}>
@@ -106,7 +106,7 @@ export function DeclarationsList() {
           {filtered.length === 0 ? (
             <EmptyState
               title="Nəticə yoxdur"
-              hint={decls.length === 0 ? 'Sizə uyğun bəyannamə tapılmadı' : 'Filtirləri dəyişdirib yenidən cəhd edin'}
+              hint={decls.length === 0 ? 'Sizə uyğun sənəd tapılmadı' : 'Filtirləri dəyişdirib yenidən cəhd edin'}
             />
           ) : (
             <>
@@ -114,14 +114,14 @@ export function DeclarationsList() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th>Qeydiyyat №</th>
                       {user.role !== 'user' && <th>Sahib</th>}
-                      <th>Növ</th>
+                      <th>Sənəd Növü</th>
                       <th>Şöbə</th>
-                      <th>Tarix</th>
-                      <th>Status</th>
-                      <th>Risk</th>
-                      <th>Dəyər</th>
+                      <th>Qəbul Tarixi</th>
+                      <th>Cari Vəziyyət</th>
+                      <th>Risk Göstəricisi</th>
+                      <th>Bəyan Dəyəri</th>
                     </tr>
                   </thead>
                   <tbody>

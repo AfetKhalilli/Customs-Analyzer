@@ -37,7 +37,7 @@ export function LoginPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Customs Analyzer</div>
+          <div className="hb-title">Gömrük Analizatoru</div>
         </div>
         <div className="hero-body">
           <h2>Gömrük sənədləri analizi üçün idarəetmə panelinə xoş gəldiniz!</h2>

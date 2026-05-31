@@ -1,0 +1,172 @@
+// ============================================================================
+// Design Tokens — Customs Authority Platform
+// ----------------------------------------------------------------------------
+// Single source of truth for colors, spacing, typography, shadows, radii,
+// breakpoints, and motion. Used by every other partial via @use 'tokens' as *.
+// ============================================================================
+
+@use 'sass:color';
+@use 'sass:map';
+
+// ── Brand & semantic colors (locked design palette) ─────────────────────────
+
+// PRIMARY (blue authority)
+$brand-50:    #eff6ff;
+$brand-100:   #dbeafe;
+$brand-500:   #235ab1;
+$brand-600:   #1d4ed8;
+$brand-700:   #1e40af;
+
+// SUCCESS
+$success-50:  #f0fdf4;
+$success-100: #dcfce7;
+$success-600: #16a34a;
+
+// DANGER
+$danger-50:   #fff1f2;
+$danger-100:  #fee2e2;
+$danger-600:  #dc2626;
+
+// WARNING
+$warning-50:  #fffbeb;
+$warning-100: #fef3c7;
+$warning-600: #d97706;
+
+// ACCENT
+$accent-violet: #7c3aed;
+$accent-orange: #ea580c;
+
+// SURFACES
+$bg-app:      #f8fafc;
+$bg-card:     #ffffff;
+
+// BORDERS
+$border-300:  #e2e8f0;
+$border-200:  #f1f5f9;
+
+// TEXT scale
+$text-900:    #0f172a;
+$text-800:    #1e293b;
+$text-700:    #334155;
+$text-600:    #475569;
+$text-500:    #64748b;
+
+// Soft surface mids (derived inside-system)
+$neutral-0:   #ffffff;
+$neutral-50:  #f8fafc;
+$neutral-100: #f1f5f9;
+$neutral-200: #e2e8f0;
+$neutral-300: #cbd5e1;
+$neutral-400: #94a3b8;
+
+// Sidebar — government navy surface
+$nav-bg:        #0b1936;
+$nav-bg-soft:   #12224b;
+$nav-border:    rgba(255, 255, 255, 0.07);
+$nav-text:      #cbd5e1;
+$nav-text-mut:  #94a3b8;
+$nav-text-hi:   #ffffff;
+$nav-active-bg: rgba(255, 255, 255, 0.08);
+$nav-active-bd: $brand-600;
+$nav-accent:    $brand-500;
+
+// PCA workspace variant — uses violet accent on the same navy base
+$pca-active-bd: $accent-violet;
+
+// Risk / status semantic map (drives every badge/banner/etc.)
+// Each entry carries:  bg (tinted body), surface (softer body), fg (text/icon),
+// border (matched outline used by tri-tone badges and banners).
+$status: (
+  info:    (bg: $brand-100,   surface: $brand-50,   fg: $brand-700,   border: rgba($brand-600, .28)),
+  success: (bg: $success-100, surface: $success-50, fg: $success-600, border: rgba($success-600, .30)),
+  warning: (bg: $warning-100, surface: $warning-50, fg: $warning-600, border: rgba($warning-600, .30)),
+  danger:  (bg: $danger-100,  surface: $danger-50,  fg: $danger-600,  border: rgba($danger-600, .30)),
+  purple:  (bg: rgba($accent-violet, .14), surface: rgba($accent-violet, .06), fg: $accent-violet, border: rgba($accent-violet, .30)),
+  orange:  (bg: rgba($accent-orange, .14), surface: rgba($accent-orange, .06), fg: $accent-orange, border: rgba($accent-orange, .30)),
+  neutral: (bg: $neutral-100, surface: $neutral-50,  fg: $text-700,    border: $border-300),
+);
+
+// Brand gradient (primary action button, hero icon, avatar)
+$grad-brand:        linear-gradient(135deg, $brand-500 0%, $brand-600 50%, $brand-700 100%);
+$grad-brand-soft:   linear-gradient(135deg, $brand-50, $brand-100);
+$grad-accent-line:  linear-gradient(90deg, $brand-500 0%, $accent-violet 50%, $brand-700 100%);
+
+@function status($key, $token: 'fg') {
+  @return map.get(map.get($status, $key), $token);
+}
+
+// ── Typography ──────────────────────────────────────────────────────────────
+
+$font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+$fs-xs:   11.5px;
+$fs-sm:   12.5px;
+$fs-md:   13.5px;
+$fs-base: 14px;
+$fs-lg:   15.5px;
+$fs-xl:   18px;
+$fs-2xl:  22px;
+$fs-3xl:  26px;
+$fs-4xl:  32px;
+
+$lh-tight: 1.2;
+$lh-snug:  1.4;
+$lh-base:  1.55;
+
+$tracking-tight:  -0.025em;
+$tracking-snug:   -0.015em;
+$tracking-normal: -0.005em;
+$tracking-wide:   0.08em;
+
+// ── Spacing scale ───────────────────────────────────────────────────────────
+$space-1:  4px;
+$space-2:  8px;
+$space-3:  12px;
+$space-4:  16px;
+$space-5:  20px;
+$space-6:  24px;
+$space-7:  28px;
+$space-8:  32px;
+$space-10: 40px;
+$space-12: 48px;
+$space-16: 64px;
+
+// ── Radii ───────────────────────────────────────────────────────────────────
+$radius-xs:  6px;
+$radius-sm:  8px;
+$radius:     10px;
+$radius-md:  12px;
+$radius-lg:  16px;
+$radius-pill: 999px;
+
+// ── Shadows (subtle, enterprise) ────────────────────────────────────────────
+$shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+$shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.05);
+$shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+$shadow-lg: 0 18px 40px rgba(15, 23, 42, 0.12);
+$shadow-xl: 0 24px 60px rgba(15, 23, 42, 0.18);
+$shadow-focus: 0 0 0 4px rgba($brand-500, 0.18);
+
+// ── Motion ──────────────────────────────────────────────────────────────────
+$ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+$dur-fast:    0.12s;
+$dur-base:    0.18s;
+$dur-slow:    0.28s;
+
+// ── Layout ──────────────────────────────────────────────────────────────────
+$sidebar-w:    264px;
+$header-h:     64px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+
+// ── Z-index scale ───────────────────────────────────────────────────────────
+$z-sidebar:    20;
+$z-header:     30;
+$z-dropdown:   40;
+$z-drawer:     45;
+$z-modal:      50;
+$z-toast:      60;

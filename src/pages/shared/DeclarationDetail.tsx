@@ -10,6 +10,7 @@ import {
 import { useForm as useFormRHF, FormProvider as FormProviderRHF } from 'react-hook-form';
 import { StatusBadge, RiskBadge, ChannelPill, Modal, Tabs, EmptyState, Avatar, RoleChip } from '../../components/ui/Primitives';
 import { TextField, TextareaField, SelectField, FileUploaderField } from '../../components/forms/Fields';
+import { DocumentFields } from '../user/DeclarationWizard';
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay, cn } from '../../lib/utils';
 import { DOCUMENT_TYPES, DOCUMENT_GROUPS, RISK_META, CURRENCIES } from '../../lib/constants';
 import { toast } from '../../store/toastStore';
@@ -60,7 +61,7 @@ export function DeclarationDetail() {
     return (
       <div>
         <Link to="/declarations" className="btn btn-ghost btn-sm"><ArrowLeft size={14} /> Geri</Link>
-        <EmptyState title="Bəyannamə tapılmadı" hint="Bu ID-li bəyannamə mövcud deyil və ya silinib." />
+        <EmptyState title="Sənəd tapılmadı" hint="Bu ID-li sənəd mövcud deyil və ya silinib." />
       </div>
     );
   }
@@ -91,18 +92,18 @@ export function DeclarationDetail() {
 
   const handleApprove = (rejectReason: string) => {
     const r = changeStatus(decl.id, 'Təsdiq', user);
-    if (r.ok) { toast.success('Bəyannamə təsdiqləndi. 5 saniyə sonra avtomatik tamamlanacaq.'); setApproveOpen(false); } else toast.error(r.error ?? 'Xəta');
+    if (r.ok) { toast.success('Sənəd təsdiqləndi. 5 saniyə sonra avtomatik tamamlanacaq.'); setApproveOpen(false); } else toast.error(r.error ?? 'Xəta');
   };
 
   const handleReject = (reason: string) => {
     if (!reason.trim()) { toast.error('Səbəb daxil edin'); return; }
     const r = changeStatus(decl.id, 'Rədd', user, { rejectReason: reason });
-    if (r.ok) { toast.success('Bəyannamə rədd edildi. 5 saniyə sonra avtomatik tamamlanacaq.'); setRejectOpen(false); } else toast.error(r.error ?? 'Xəta');
+    if (r.ok) { toast.success('Sənəd rədd edildi. 5 saniyə sonra avtomatik tamamlanacaq.'); setRejectOpen(false); } else toast.error(r.error ?? 'Xəta');
   };
 
   const handleResubmit = () => {
     resubmitDeclaration(decl.id, user);
-    toast.success('Bəyannamə yenidən təqdim edildi');
+    toast.success('Sənəd yenidən təqdim edildi');
   };
 
   const handleComment = () => {
@@ -132,7 +133,7 @@ export function DeclarationDetail() {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}><ArrowLeft size={14} /> Geri</button>
-        <span className="text-muted text-sm">/ Bəyannamə</span>
+        <span className="text-muted text-sm">/ Sənəd</span>
       </div>
 
       <div className="card mb-4" style={{ padding: 0 }}>
@@ -198,7 +199,7 @@ export function DeclarationDetail() {
             <div className="banner error mt-3">
               <AlertTriangle size={20} />
               <div className="b-body">
-                <div className="b-title">Sistem validasiyası uğursuz ({validation.errors.length} səhv) — bu bəyannamə təsdiq edilə bilməz</div>
+                <div className="b-title">Sistem validasiyası uğursuz ({validation.errors.length} səhv) — bu sənəd təsdiq edilə bilməz</div>
                 <ul style={{ marginTop: 6, paddingLeft: 18 }}>
                   {validation.errors.slice(0, 8).map((e, i) => (
                     <li key={i}><code>{e.code}</code> — {e.message}</li>
@@ -230,7 +231,7 @@ export function DeclarationDetail() {
             <div className="banner error mt-3">
               <XCircle size={20} />
               <div className="b-body">
-                <div className="b-title">Bəyannamə rədd edildi</div>
+                <div className="b-title">Sənəd rədd edildi</div>
                 <div>{decl.rejectReason}</div>
               </div>
             </div>
@@ -575,7 +576,7 @@ export function DeclarationDetail() {
           </button>
         </>}>
         <p><b>Düzəliş tələbi:</b> {decl.correctionRequest?.summary}</p>
-        <p>Tələb olunan dəyişiklikləri həqiqətən etdinizmi? Yenidən təqdim etdikdən sonra müfəttişə bildiriş gedəcək və AI bəyannaməni yenidən qiymətləndirəcək.</p>
+        <p>Tələb olunan dəyişiklikləri həqiqətən etdinizmi? Yenidən təqdim etdikdən sonra müfəttişə bildiriş gedəcək və süni intellekt sənədi yenidən qiymətləndirəcək.</p>
         <p className="text-muted text-sm">Əgər hələ sənədləri yeniləməmisinizsə, <b>Ləğv et</b> düyməsini sıxın və əvvəl "Sənədlər" sekmesindən düzəliş edin.</p>
       </Modal>
 
@@ -658,9 +659,9 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
       if (decl.rejectReason) return { verdict: 'Rədd edildikdən sonra bağlandı', tone: 'error' as const, detail: decl.rejectReason };
       return { verdict: 'Təsdiq olundu və bağlandı', tone: 'success' as const, detail: 'Müfəttiş təsdiqindən sonra sistem tərəfindən bağlandı.' };
     }
-    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq Edilib', tone: 'success' as const, detail: 'Müfəttiş bəyannaməni təsdiqlədi.' };
+    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq Edilib', tone: 'success' as const, detail: 'Müfəttiş sənədi təsdiqlədi.' };
     if (decl.status === 'Rədd') return { verdict: 'Rədd Edilib', tone: 'error' as const, detail: decl.rejectReason ?? 'Səbəb göstərilməyib' };
-    return { verdict: decl.status, tone: 'info' as const, detail: 'Bəyannamə hələ qiymətləndirmə altındadır.' };
+    return { verdict: decl.status, tone: 'info' as const, detail: 'Sənəd hələ qiymətləndirmə altındadır.' };
   })();
 
   const criticalFlags = decl.ai.flags.filter((f: any) => f.severity === 'critical');
@@ -708,7 +709,7 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
             <div>{inspectorName ?? '— Təyin olunmayıb —'}</div>
           </div>
           <div>
-            <small className="text-muted">AI risk skoru</small>
+            <small className="text-muted">Süni İntellekt Risk Skoru</small>
             <div className="font-bold">{decl.ai.score} / 100 · {decl.ai.riskLevel} · {decl.ai.selectivityChannel}</div>
           </div>
         </div>
@@ -784,14 +785,14 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
             )}
           </div>
         ) : (
-          <p className="text-muted">Bu bəyannamə üçün məlumat bazasından istinad istifadə edilməyib.</p>
+          <p className="text-muted">Bu sənəd üçün məlumat bazasından istinad istifadə edilməyib.</p>
         )}
 
         <div className="divider" />
 
         {/* ACTIONS — PCA can take decisions WITHOUT modifying core data */}
         <h4>6. PCA Audit Əməliyyatları</h4>
-        <p className="text-muted text-sm">PCA Auditoru bəyannamənin özünü dəyişmir — yalnız audit qərarı, tapıntı, cərimə, eskaləsiya və qeydlər yaradır.</p>
+        <p className="text-muted text-sm">PCA Auditoru sənədin özünü dəyişmir — yalnız audit qərarı, tapıntı, cərimə, eskaləsiya və qeydlər yaradır.</p>
 
         {ourCase && (
           <div className="banner info" style={{ marginTop: 8, marginBottom: 8 }}>
@@ -865,9 +866,9 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
         {ourFindings.length > 0 && (
           <>
             <div className="divider" />
-            <h4>Bu bəyannamədən açılmış tapıntılar ({ourFindings.length})</h4>
+            <h4>Bu sənəddən açılmış tapıntılar ({ourFindings.length})</h4>
             <table className="table table-dense">
-              <thead><tr><th>Başlıq</th><th>Kateqoriya</th><th>Şiddət</th><th>Status</th><th className="cell-num">Rüsum təsiri</th></tr></thead>
+              <thead><tr><th>Başlıq</th><th>Kateqoriya</th><th>Şiddət</th><th>Cari Vəziyyət</th><th className="cell-num">Rüsum Təsiri</th></tr></thead>
               <tbody>
                 {ourFindings.map((f) => (
                   <tr key={f.id} style={{ cursor: 'default' }}>
@@ -888,7 +889,7 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
             <div className="divider" />
             <h4>Tətbiq edilmiş cərimələr ({ourPenalties.length})</h4>
             <table className="table table-dense">
-              <thead><tr><th>Tarix</th><th>Səbəb</th><th>Hüquqi əsas</th><th className="cell-num">Məbləğ</th><th>Son tarix</th><th>Status</th></tr></thead>
+              <thead><tr><th>Qeydiyyat Tarixi</th><th>Səbəb</th><th>Hüquqi Əsas</th><th className="cell-num">Məbləğ</th><th>Son Ödəniş Tarixi</th><th>Cari Vəziyyət</th></tr></thead>
               <tbody>
                 {ourPenalties.map((p) => (
                   <tr key={p.id} style={{ cursor: 'default' }}>
@@ -910,7 +911,7 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
             <div className="divider" />
             <h4>Eskaləsiya tarixçəsi ({ourEscalations.length})</h4>
             <table className="table table-dense">
-              <thead><tr><th>Tarix</th><th>Səviyyə</th><th>Səbəb</th><th>Status</th></tr></thead>
+              <thead><tr><th>Qeydiyyat Tarixi</th><th>Eskaləsiya Səviyyəsi</th><th>Səbəb</th><th>Cari Vəziyyət</th></tr></thead>
               <tbody>
                 {ourEscalations.map((e) => (
                   <tr key={e.id} style={{ cursor: 'default' }}>
@@ -1304,12 +1305,10 @@ function ReplaceDocumentModal({ doc, onClose, onSave }: { doc: any; onClose: () 
       <FormProviderRHF {...methods}>
         <form onSubmit={submit}>
           <FileUploaderField name="_file" label="Fayl" hint="Mövcud faylı əvəz etmək üçün yeni fayl seçin" />
-          {Object.keys(doc.fields ?? {}).map((k) => (
-            <div className="form-group" key={k}>
-              <label className="label">{k}</label>
-              <input className="input" {...methods.register(k)} />
-            </div>
-          ))}
+          {/* Reuse the same structured field set as the create flow so edit mode
+              shows identical Azerbaijani labels and correct input types (date /
+              select / number / HS typeahead) instead of raw field keys. */}
+          <DocumentFields typeCode={doc.typeCode} />
         </form>
       </FormProviderRHF>
     </Modal>
@@ -1318,10 +1317,10 @@ function ReplaceDocumentModal({ doc, onClose, onSave }: { doc: any; onClose: () 
 
 function ApproveModal({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: (s: string) => void }) {
   return (
-    <Modal open={open} onClose={onClose} title="Bəyannaməni təsdiqlə"
+    <Modal open={open} onClose={onClose} title="Sənədi təsdiqlə"
       footer={<><button className="btn btn-secondary" onClick={onClose}>Ləğv et</button><button className="btn btn-success" onClick={() => onConfirm('')}>Təsdiq et</button></>}>
-      <p>Bu bəyannaməni təsdiqləmək istədiyinizə əminsiniz?</p>
-      <p className="text-muted text-sm">Təsdiqdən 5 saniyə sonra sistem avtomatik olaraq bəyannaməni "Tamamlanmış" statusuna keçirəcək.</p>
+      <p>Bu sənədi təsdiqləmək istədiyinizə əminsiniz?</p>
+      <p className="text-muted text-sm">Təsdiqdən 5 saniyə sonra sistem avtomatik olaraq sənədi "Tamamlanmış" statusuna keçirəcək.</p>
     </Modal>
   );
 }
@@ -1330,7 +1329,7 @@ function RejectModal({ open, onClose, onConfirm }: { open: boolean; onClose: () 
   const [reason, setReason] = React.useState('');
   React.useEffect(() => { if (!open) setReason(''); }, [open]);
   return (
-    <Modal open={open} onClose={onClose} title="Bəyannaməni rədd et"
+    <Modal open={open} onClose={onClose} title="Sənədi rədd et"
       footer={<><button className="btn btn-secondary" onClick={onClose}>Ləğv et</button><button className="btn btn-danger" onClick={() => onConfirm(reason)}>Rədd et</button></>}>
       <div className="form-group">
         <label className="label">Rədd səbəbi <span className="req">*</span></label>

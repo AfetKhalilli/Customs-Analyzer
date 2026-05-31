@@ -1,0 +1,415 @@
+// ============================================================================
+// Forms — inputs, selects, textareas, radio cards, stepper, password strength
+// ============================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+// ── Field wrapper ──────────────────────────────────────────────────────────
+.form-group {
+  margin-bottom: $space-5;
+}
+
+.label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: $fs-md;
+  font-weight: 600;
+  color: $text-700;
+  letter-spacing: $tracking-normal;
+
+  .req {
+    color: $danger-600;
+    margin-left: 3px;
+    font-weight: 700;
+  }
+}
+
+// ── Inputs ─────────────────────────────────────────────────────────────────
+.input,
+.select,
+.textarea {
+  width: 100%;
+  height: 44px;
+  padding: 0 $space-4;
+  border: 1px solid $border-300;
+  border-radius: $radius;
+  background: $bg-card;
+  color: $text-900;
+  font-size: $fs-base;
+  font-family: inherit;
+  transition: border-color $dur-fast ease, box-shadow $dur-fast ease, background $dur-fast ease;
+
+  &::placeholder { color: $neutral-400; }
+
+  &:hover:not(:focus):not(.error):not(:disabled) {
+    border-color: $neutral-300;
+  }
+  &:focus {
+    @include focus-ring($brand-500);
+  }
+  &.error {
+    border-color: $danger-600;
+    background: #fff7f7;
+    &:focus { box-shadow: 0 0 0 4px rgba($danger-600, 0.16); }
+  }
+  &:disabled {
+    background: $neutral-100;
+    color: $text-500;
+    cursor: not-allowed;
+  }
+}
+
+.textarea {
+  height: auto;
+  min-height: 96px;
+  padding: 12px $space-4;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, $text-500 50%),
+    linear-gradient(135deg, $text-500 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 19px,
+    calc(100% - 13px) 19px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.error-text {
+  color: #b91c1c;
+  font-size: $fs-sm;
+  margin-top: 6px;
+  font-weight: 500;
+  display: flex; align-items: center; gap: 5px;
+  &::before { content: '⚠'; font-size: 11px; }
+}
+
+.help-text {
+  color: $text-500;
+  font-size: $fs-sm;
+  margin-top: 6px;
+  line-height: $lh-snug;
+}
+
+// ── Multi-column form layout ────────────────────────────────────────────────
+.form-row {
+  display: grid;
+  gap: $space-4;
+  &.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  &.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+  @include bp('max-md') {
+    &.cols-2, &.cols-3 { grid-template-columns: 1fr; }
+  }
+}
+
+// ── Checkbox row ────────────────────────────────────────────────────────────
+.checkbox-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: $brand-600;
+    width: 16px; height: 16px;
+    cursor: pointer;
+  }
+  label {
+    color: $text-700;
+    font-size: $fs-md;
+    line-height: $lh-snug;
+    cursor: pointer;
+  }
+}
+
+// ── Radio cards (segmented option group) ────────────────────────────────────
+.radio-cards {
+  display: grid;
+  gap: $space-3;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.radio-card {
+  padding: $space-4;
+  border: 1.5px solid $border-300;
+  border-radius: $radius-md;
+  background: $bg-card;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color $dur-fast ease, background $dur-fast ease,
+              transform $dur-fast ease, box-shadow $dur-fast ease;
+
+  &:hover {
+    border-color: $brand-500;
+    transform: translateY(-2px);
+    box-shadow: $shadow-sm;
+  }
+  &.selected {
+    border-color: $brand-600;
+    background: $brand-50;
+    box-shadow: 0 0 0 4px rgba($brand-600, 0.10);
+  }
+  .rc-title {
+    font-weight: 600;
+    color: $text-900;
+    font-size: $fs-md;
+  }
+  .rc-desc {
+    font-size: $fs-sm;
+    color: $text-500;
+    line-height: $lh-snug;
+  }
+}
+
+// ── Wizard stepper ─────────────────────────────────────────────────────────
+.stepper {
+  display: flex; gap: $space-3;
+  margin-bottom: $space-7;
+  align-items: center;
+  flex-wrap: wrap;
+
+  // On narrow screens, give each step room to wrap instead of squishing labels.
+  @include bp('max-md') {
+    gap: $space-2;
+    margin-bottom: $space-5;
+
+    .step {
+      flex: 1 1 calc(50% - #{$space-2});
+      min-width: 0;
+    }
+  }
+}
+.step {
+  flex: 1;
+  min-width: 0;
+  padding: $space-3 $space-4;
+  border: 1px solid $border-300;
+  border-radius: $radius;
+  background: $bg-card;
+  color: $text-500;
+  display: flex; align-items: center; gap: $space-3;
+  font-size: $fs-md;
+  font-weight: 500;
+  transition: all $dur-base ease;
+  position: relative;
+
+  > span:not(.num) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: $neutral-100;
+    color: $text-600;
+    display: grid; place-items: center;
+    font-weight: 700;
+    font-size: $fs-sm;
+    flex-shrink: 0;
+    transition: background $dur-base ease, color $dur-base ease,
+                box-shadow $dur-base ease;
+    border: 2px solid transparent;
+  }
+  &.active {
+    border-color: $brand-600;
+    color: $brand-700;
+    background: $brand-50;
+    box-shadow: 0 4px 14px rgba($brand-700, 0.10);
+    font-weight: 600;
+    .num {
+      background: $brand-600;
+      color: white;
+      box-shadow: 0 0 0 4px rgba($brand-600, 0.18);
+    }
+  }
+  &.done {
+    border-color: rgba($brand-600, 0.30);
+    color: $brand-700;
+    background: $brand-50;
+    .num { background: $brand-600; color: white; }
+  }
+  &.locked {
+    opacity: 0.7;
+    background: $neutral-50;
+    .num { border-color: $border-300; background: $bg-card; }
+  }
+}
+
+// ── AI risk preview embedded panel (Sənəd Əlavə Et — Step 4) ───────────────
+.wizard-ai-preview {
+  margin-top: $space-4;
+  padding: $space-4 $space-5;
+  border-radius: $radius-md;
+  background: $neutral-50;
+  border: 1px solid $border-300;
+  box-shadow: inset 0 0 0 1px rgba($brand-600, 0.02);
+
+  h3 {
+    margin: 0 0 $space-3;
+    font-size: $fs-md;
+    font-weight: 700;
+    color: $text-900;
+    display: flex; align-items: center; gap: $space-2;
+
+    &::before {
+      content: '';
+      width: 4px; height: 18px;
+      border-radius: 2px;
+      background: $grad-accent-line;
+    }
+  }
+}
+
+// ── Password strength meter ─────────────────────────────────────────────────
+.password-strength { margin-top: $space-2; }
+.ps-bar {
+  height: 5px;
+  background: $neutral-100;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.ps-bar-fill {
+  height: 100%;
+  transition: width $dur-base ease, background $dur-base ease;
+  border-radius: 4px;
+}
+.ps-label {
+  font-size: $fs-xs;
+  margin-top: 5px;
+  color: $text-500;
+  font-weight: 500;
+}
+
+// ── Filter bar (above tables / lists) ───────────────────────────────────────
+.filter-bar {
+  display: flex; flex-wrap: wrap;
+  gap: $space-3;
+  align-items: center;
+  margin-bottom: $space-4;
+  padding: $space-3 $space-4;
+  background: $neutral-50;
+  border: 1px solid $border-300;
+  border-radius: $radius-md;
+
+  .input,
+  .select { height: 40px; background: $bg-card; }
+  .input.search {
+    width: 280px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    padding-left: 36px;
+  }
+}
+
+// ── Chips ──────────────────────────────────────────────────────────────────
+.chip-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.chip {
+  padding: 5px $space-3;
+  border-radius: $radius-pill;
+  border: 1px solid $border-300;
+  background: $bg-card;
+  font-size: $fs-sm;
+  cursor: pointer;
+  color: $text-700;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 500;
+  transition: all $dur-fast ease;
+
+  &:hover { background: $brand-50; border-color: rgba($brand-600, 0.25); color: $brand-700; }
+  &.active {
+    background: $brand-600;
+    border-color: $brand-600;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba($brand-700, 0.22);
+  }
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+.chip-close {
+  display: inline-flex; align-items: center;
+  padding-left: 4px;
+  color: currentColor;
+}
+
+// ── HS Code typeahead listbox (portal-rendered, fixed-positioned) ──────────
+// Lives at document.body so it can escape any ancestor `overflow:auto` —
+// especially the .modal-body inside the document-attachment modal. Uses the
+// modal z-index tier so it always sits above any open dialog.
+.hs-listbox {
+  z-index: $z-modal + 5;
+  max-height: 280px;
+  overflow-y: auto;
+  background: $bg-card;
+  border: 1px solid $border-300;
+  border-radius: $radius-sm;
+  box-shadow: $shadow-md;
+  animation: fadeIn $dur-fast ease-out;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: $neutral-200; border-radius: 4px; }
+}
+
+.hs-listbox-item {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  gap: $space-3;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid $border-200;
+  cursor: pointer;
+  transition: background $dur-fast ease;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $brand-50; }
+  &:focus-visible {
+    outline: none;
+    background: $brand-50;
+    box-shadow: inset 0 0 0 2px rgba($brand-500, 0.40);
+  }
+}
+
+.hs-listbox-code {
+  min-width: 90px;
+  color: $brand-700;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.hs-listbox-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.hs-listbox-label {
+  font-weight: 500;
+  color: $text-900;
+  font-size: $fs-md;
+}
+
+.hs-listbox-sub {
+  font-size: $fs-sm;
+  color: $text-500;
+}
+
+.hs-match-ok {
+  margin-top: 6px;
+  color: $brand-700;
+  font-weight: 500;
+}
