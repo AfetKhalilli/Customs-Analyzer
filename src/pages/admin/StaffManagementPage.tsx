@@ -143,12 +143,15 @@ export function StaffManagementPage() {
           <p className="text-muted">
             {isBoss
               ? 'İnspektorları, Şöbə Rəislərini, PCA auditorlarını və şöbələri idarə edin'
-              : `${myDept} şöbəsinin müfəttişlərini idarə edin`}
+              : `${myDept} şöbəsinin müfəttişlərini görüntüləyin (yalnız oxuma)`}
           </p>
         </div>
-        <button className="btn" onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus size={14} /> {isBoss ? 'Yeni əməkdaş' : 'Yeni müfəttiş'}
-        </button>
+        {/* Only Boss can create staff accounts. DepartmentHead is view-only. */}
+        {isBoss && (
+          <button className="btn" onClick={() => { setEditing(null); setOpen(true); }}>
+            <Plus size={14} /> Yeni əməkdaş
+          </button>
+        )}
       </div>
 
       <Tabs
@@ -187,7 +190,7 @@ export function StaffManagementPage() {
                   <thead>
                     <tr>
                       <th>Ad Soyad</th><th>Vəzifə</th><th>FİN</th><th>Şöbə</th><th>E-poçt</th><th>Cari Vəziyyət</th>
-                      <th className="cell-actions">Əməliyyatlar</th>
+                      {isBoss && <th className="cell-actions">Əməliyyatlar</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -199,14 +202,16 @@ export function StaffManagementPage() {
                         <td>{u.department ?? '—'}</td>
                         <td>{u.email}</td>
                         <td>{u.status === 'active' ? 'Aktiv' : 'Dayandırılıb'}</td>
-                        <td className="cell-actions">
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(u); setOpen(true); }}>
-                            <Edit2 size={14} />
-                          </button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(u)}>
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
+                        {isBoss && (
+                          <td className="cell-actions">
+                            <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(u); setOpen(true); }}>
+                              <Edit2 size={14} />
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(u)}>
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

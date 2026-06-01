@@ -4,11 +4,13 @@ import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { EmptyState } from '../../components/ui/Primitives';
 import { formatCurrency } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Bookmark } from 'lucide-react';
 import { toast } from '../../store/toastStore';
 
 export function WatchlistPage() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const watchlists = useDataStore((s) => s.watchlists);
   const cases = useDataStore((s) => s.pcaCases);
@@ -64,7 +66,7 @@ export function WatchlistPage() {
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.id} onClick={() => navigate(`/pca/company/${r.id}`)}>
+                    <tr key={r.id} onClick={() => navigate(pp(`/pca/company/${r.id}`))}>
                       <td><b>{r.name}</b></td>
                       <td className="cell-num">{r.count}</td>
                       <td className="cell-num">{r.avg}</td>

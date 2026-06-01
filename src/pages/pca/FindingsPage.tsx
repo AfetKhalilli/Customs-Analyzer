@@ -4,6 +4,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { EmptyState, Modal, Pagination } from '../../components/ui/Primitives';
 import { formatDate, formatCurrency } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Plus, FileSearch } from 'lucide-react';
 import { toast } from '../../store/toastStore';
 import {
@@ -13,6 +14,7 @@ import type { FindingCategory, FindingSeverity, PCACase } from '../../types';
 
 export function FindingsPage() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const findings = useDataStore((s) => s.pcaFindings);
   const cases = useDataStore((s) => s.pcaCases);
@@ -95,7 +97,7 @@ export function FindingsPage() {
                   </thead>
                   <tbody>
                     {slice.map((f) => (
-                      <tr key={f.id} onClick={() => navigate(`/pca/company/${f.companyId}`)}>
+                      <tr key={f.id} onClick={() => navigate(pp(`/pca/company/${f.companyId}`))}>
                         <td className="cell-id">{f.id.slice(-8)}</td>
                         <td>{f.companyName}</td>
                         <td><b>{f.title}</b></td>

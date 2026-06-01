@@ -6,10 +6,12 @@ import { FilePlus, AlertTriangle } from 'lucide-react';
 import { StatusBadge, RiskBadge, EmptyState, Pagination } from '../../components/ui/Primitives';
 import { ALL_STATUSES } from '../../types';
 import { formatDate } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 
 export function UserDashboard() {
   const user = useCurrentUser()!;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const decls = useDataStore((s) => s.declarations).filter((d) => d.ownerId === user.id);
   const departments = useDataStore((s) => s.departments);
 
@@ -51,7 +53,7 @@ export function UserDashboard() {
           <h1>Salam, {dispName}!</h1>
           <p className="text-muted">Sənədlərinizi izləyin və yeni sənəd əlavə edin</p>
         </div>
-        <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link>
+        <Link to={pp('/declaration/new')} className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link>
       </div>
 
       {correctionRequests.length > 0 && (
@@ -126,7 +128,7 @@ export function UserDashboard() {
             <EmptyState
               title={decls.length === 0 ? 'Hələ sənəd yoxdur' : 'Süzgəcə uyğun nəticə yoxdur'}
               hint={decls.length === 0 ? 'İlk sənədinizi yaratmaq üçün “Sənəd Əlavə Et” düyməsini sıxın' : 'Süzgəcləri dəyişdirib yenidən cəhd edin'}
-              action={decls.length === 0 ? <Link to="/declaration/new" className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link> : undefined}
+              action={decls.length === 0 ? <Link to={pp('/declaration/new')} className="btn"><FilePlus size={16} /> Sənəd Əlavə Et</Link> : undefined}
             />
           ) : (
             <>
@@ -146,7 +148,7 @@ export function UserDashboard() {
                   </thead>
                   <tbody>
                     {slice.map((d) => (
-                      <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
+                      <tr key={d.id} onClick={() => navigate(pp(`/declaration/${d.id}`))}>
                         <td className="cell-id">{d.id.slice(-12)}</td>
                         <td>{d.kind}</td>
                         <td>{d.department}</td>

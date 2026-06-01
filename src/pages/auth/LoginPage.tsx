@@ -2,19 +2,27 @@ import React from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginSchema } from '../../lib/schemas';
+import { loginSchema, staffLoginSchema } from '../../lib/schemas';
 import { TextField, PasswordField, CheckboxField } from '../../components/forms/Fields';
 import { LogoMark } from '../../components/ui/LogoMark';
 import { useAuthStore } from '../../store/authStore';
+import { useDataStore } from '../../store/dataStore';
+import { appPath, STAFF_ROLES } from '../../lib/routes';
 import { toast } from '../../store/toastStore';
+import type { Role } from '../../types';
 
-export function LoginPage() {
+// `portal` only affects presentation (heading + whether the register link shows)
+// and the default redirect; the actual post-login destination is resolved from
+// the authenticated user's role, so behaviour is identical regardless of which
+// login page was used.
+export function LoginPage({ portal = 'user' }: { portal?: 'user' | 'staff' }) {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const [error, setError] = React.useState<string | null>(null);
 
+  const isStaff = portal === 'staff';
   const methods = useForm({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(isStaff ? staffLoginSchema : loginSchema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: { loginIdentifier: '', password: '', rememberMe: false },
@@ -23,13 +31,20 @@ export function LoginPage() {
   const onSubmit = methods.handleSubmit((values) => {
     setError(null);
     const id = values.loginIdentifier.trim();
-    const res = login(id, values.password, values.rememberMe);
+    // Portal isolation: only the roles belonging to THIS portal may log in here.
+    const allowedRoles: Role[] = isStaff ? STAFF_ROLES : ['user'];
+    const res = login(id, values.password, values.rememberMe, allowedRoles);
     if (!res.ok) {
       setError(res.error ?? 'Daxil olmaq mümkün olmadı');
       return;
     }
     toast.success('Daxil oldunuz');
-    navigate('/dashboard');
+    // Resolve destination from the actual role: user → /portal/dashboard,
+    // staff → /admin/dashboard.
+    const role = res.userId
+      ? useDataStore.getState().users.find((u) => u.id === res.userId)?.role
+      : undefined;
+    navigate(appPath(role ?? (portal === 'staff' ? 'inspector' : 'user'), '/dashboard'));
   });
 
   return (
@@ -51,22 +66,28 @@ export function LoginPage() {
 
       <div className="auth-form-wrap">
         <div className="auth-card">
-          <h1>Sistemə Daxil Ol</h1>
-          <p className="auth-sub">Hesabınıza daxil olun və işə davam edin</p>
+          <h1>{portal === 'staff' ? 'Əməkdaş Girişi' : 'Sistemə Daxil Ol'}</h1>
+          <p className="auth-sub">
+            {portal === 'staff'
+              ? 'Əməkdaş hesabınıza daxil olun (inspektor, şöbə rəisi, direktor, PCA)'
+              : 'Hesabınıza daxil olun və işə davam edin'}
+          </p>
           <FormProvider {...methods}>
             <form onSubmit={onSubmit}>
               <TextField
                 name="loginIdentifier"
-                label="FİN nömrəsi və ya VÖEN"
+                label={isStaff ? 'FİN nömrəsi' : 'FİN nömrəsi və ya VÖEN'}
                 required
-                hint="Fiziki şəxslər üçün 7 simvolluq FİN, hüquqi şəxslər üçün 10 rəqəmli VÖEN"
+                hint={isStaff
+                  ? '7 simvolluq FİN kodu (əməkdaşlar yalnız FİN ilə daxil olur)'
+                  : 'Fiziki şəxslər üçün 7 simvolluq FİN, hüquqi şəxslər üçün 10 rəqəmli VÖEN'}
                 placeholder="FİN kodunuzu daxil edin"
                 transform={(v) => v.toUpperCase()}
               />
               <PasswordField name="password" label="Şifrə" required placeholder="Şifrənizi daxil edin" />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 18px' }}>
                 <CheckboxField name="rememberMe" label="Məni xatırla" />
-                <Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 600 }}>
+                <Link to={isStaff ? '/admin/forgot-password' : '/forgot-password'} style={{ fontSize: 13, fontWeight: 600 }}>
                   Şifrəni unutmusunuz?
                 </Link>
               </div>
@@ -74,9 +95,11 @@ export function LoginPage() {
               <button type="submit" className="btn btn-block btn-lg">Daxil ol</button>
             </form>
           </FormProvider>
-          <div className="auth-footer">
-            Hesabınız yoxdur? <Link to="/register">Qeydiyyatdan keçin</Link>
-          </div>
+          {portal !== 'staff' && (
+            <div className="auth-footer">
+              Hesabınız yoxdur? <Link to="/register">Qeydiyyatdan keçin</Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

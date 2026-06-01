@@ -4,12 +4,14 @@ import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { StatusBadge, RiskBadge, ChannelPill, EmptyState } from '../../components/ui/Primitives';
 import { relativeTime } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { formatInspectionDeadline, DECLARATION_KIND_LABEL } from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function InspectorDashboard() {
   const user = useCurrentUser()! as IndividualUser;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const decls = useDataStore((s) => s.declarations).filter((d) => d.assignedInspectorId === user.id);
 
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
@@ -46,12 +48,12 @@ export function InspectorDashboard() {
       <p className="text-muted">{user.firstName} {user.lastName} · {user.department} şöbəsi</p>
 
       <div className="kpi-grid">
-        <div className="kpi-card blue clickable" onClick={() => navigate('/declarations')}>
+        <div className="kpi-card blue clickable" onClick={() => navigate(pp('/declarations'))}>
           <div className="kpi-label">Aktiv Audit İşləri</div>
           <div className="kpi-value">{active.length}</div>
           <div className="kpi-hint">Davam edən sənədlər</div>
         </div>
-        <div className="kpi-card amber clickable" onClick={() => navigate('/declarations?status=Yüklənib')}>
+        <div className="kpi-card amber clickable" onClick={() => navigate(pp('/declarations?status=Yüklənib'))}>
           <div className="kpi-label">Yoxlamaya Götürülməyib</div>
           <div className="kpi-value">{pendingPickup.length}</div>
           <div className="kpi-hint">Audit başlanmalıdır</div>
@@ -66,12 +68,12 @@ export function InspectorDashboard() {
           <div className="kpi-value">{dueSoonCount}</div>
           <div className="kpi-hint">Yaxınlaşan son tarix</div>
         </div>
-        <div className="kpi-card orange clickable" onClick={() => navigate('/declarations?status=Düzəliş Tələb Olunur')}>
+        <div className="kpi-card orange clickable" onClick={() => navigate(pp('/declarations?status=Düzəliş Tələb Olunur'))}>
           <div className="kpi-label">Düzəliş Gözləyir</div>
           <div className="kpi-value">{awaiting.length}</div>
           <div className="kpi-hint">İstifadəçidən cavab</div>
         </div>
-        <div className="kpi-card green clickable" onClick={() => navigate('/declarations?status=Tamamlanmış')}>
+        <div className="kpi-card green clickable" onClick={() => navigate(pp('/declarations?status=Tamamlanmış'))}>
           <div className="kpi-label">Bu Gün Bağlanıb</div>
           <div className="kpi-value">{completedToday.length}</div>
           <div className="kpi-hint">Son 24 saat</div>
@@ -101,7 +103,7 @@ export function InspectorDashboard() {
                     {sorted.map((d) => {
                       const di = d.inspectionDeadline ? formatInspectionDeadline(d.inspectionDeadline) : null;
                       return (
-                        <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
+                        <tr key={d.id} onClick={() => navigate(pp(`/declaration/${d.id}`))}>
                           <td className="cell-id">{d.id.slice(-10)}</td>
                           <td>{d.ownerDisplayName}</td>
                           <td>{DECLARATION_KIND_LABEL[d.kind] ?? d.kind}</td>

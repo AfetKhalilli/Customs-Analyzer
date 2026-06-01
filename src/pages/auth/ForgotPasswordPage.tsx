@@ -3,14 +3,24 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { LogoMark } from '../../components/ui/LogoMark';
 import { toast } from '../../store/toastStore';
+import { STAFF_ROLES } from '../../lib/routes';
+import type { Role } from '../../types';
 
 // Two-step demo flow: (1) verify identifier + email → token; (2) reset password.
 // In production step 1 emails the token instead of returning it. Step 2 is
 // identical and the rest of the UI doesn't need to change.
-export function ForgotPasswordPage() {
+//
+// `portal` enforces isolation: the staff variant accepts ONLY a FIN (no VÖEN)
+// and can only reset staff accounts; the user variant accepts FIN or VÖEN and
+// can only reset declarant accounts.
+export function ForgotPasswordPage({ portal = 'user' }: { portal?: 'user' | 'staff' }) {
   const navigate = useNavigate();
   const requestReset = useAuthStore((s) => s.requestPasswordReset);
   const resetPassword = useAuthStore((s) => s.resetPassword);
+
+  const isStaff = portal === 'staff';
+  const allowedRoles: Role[] = isStaff ? STAFF_ROLES : ['user'];
+  const loginPath = isStaff ? '/admin/login' : '/portal/login';
 
   const [step, setStep] = React.useState<1 | 2>(1);
   const [identifier, setIdentifier] = React.useState('');
@@ -24,14 +34,24 @@ export function ForgotPasswordPage() {
   const onRequest = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!identifier.trim() || !email.trim()) {
-      setError('FİN/VÖEN və e-poçt tələb olunur');
+    const id = identifier.trim();
+    if (!id || !email.trim()) {
+      setError(isStaff ? 'FİN və e-poçt tələb olunur' : 'FİN/VÖEN və e-poçt tələb olunur');
+      return;
+    }
+    // Staff flow is FIN-only — VÖEN (10 digits) is never accepted here.
+    if (isStaff && !/^[A-Za-z0-9]{7}$/.test(id)) {
+      setError('FİN düz 7 simvol olmalıdır (A-Z və 0-9)');
       return;
     }
     setSubmitting(true);
-    const r = requestReset(identifier, email);
+    const r = requestReset(id, email, allowedRoles);
     setSubmitting(false);
-    if (!r.ok) { setError(r.error ?? 'Sorğu uğursuz oldu'); return; }
+    if (!r.ok) {
+      // Keep staff messaging VÖEN-free regardless of the store's generic text.
+      setError(isStaff ? 'Bu FİN və e-poçt cütü ilə əməkdaş hesabı tapılmadı' : (r.error ?? 'Sorğu uğursuz oldu'));
+      return;
+    }
     setToken(r.token ?? '');
     setStep(2);
     toast.success('Şifrə bərpa tokeni yaradıldı (30 dəqiqə etibarlıdır)');
@@ -47,7 +67,7 @@ export function ForgotPasswordPage() {
     setSubmitting(false);
     if (!r.ok) { setError(r.error ?? 'Şifrə dəyişdirilə bilmədi'); return; }
     toast.success('Şifrə yeniləndi — yeni şifrə ilə daxil olun');
-    navigate('/login', { replace: true });
+    navigate(loginPath, { replace: true });
   };
 
   return (
@@ -58,8 +78,8 @@ export function ForgotPasswordPage() {
           <div className="hb-title">Customs Analyzer</div>
         </div>
         <div className="hero-body">
-          <h2>Şifrəni unutmusunuz?</h2>
-          <p>FİN/VÖEN və qeydiyyat e-poçtunuzu daxil edin — sistem sizə təhlükəsiz bərpa tokeni verəcək. Token 30 dəqiqə etibarlıdır və yalnız bir dəfə istifadə oluna bilər.</p>
+          <h2>Şifrəni unutmusunuz?{isStaff ? ' (Əməkdaş)' : ''}</h2>
+          <p>{isStaff ? 'FİN' : 'FİN/VÖEN'} və qeydiyyat e-poçtunuzu daxil edin — sistem sizə təhlükəsiz bərpa tokeni verəcək. Token 30 dəqiqə etibarlıdır və yalnız bir dəfə istifadə oluna bilər.</p>
         </div>
       </div>
 
@@ -73,11 +93,11 @@ export function ForgotPasswordPage() {
           {step === 1 ? (
             <form onSubmit={onRequest}>
               <div className="form-group">
-                <label className="label">FİN və ya VÖEN <span className="req">*</span></label>
+                <label className="label">{isStaff ? 'FİN' : 'FİN və ya VÖEN'} <span className="req">*</span></label>
                 <input className="input" value={identifier}
                   onChange={(e) => setIdentifier(e.target.value.toUpperCase())}
-                  placeholder="məs: 7CA8FB1 və ya 1234567890" />
-                <div className="help-text">Fiziki: 7 simvol FİN · Hüquqi: 10 rəqəm VÖEN</div>
+                  placeholder={isStaff ? 'məs: INS1000' : 'məs: 7CA8FB1 və ya 1234567890'} />
+                <div className="help-text">{isStaff ? 'Əməkdaş girişi yalnız 7 simvolluq FİN ilə işləyir' : 'Fiziki: 7 simvol FİN · Hüquqi: 10 rəqəm VÖEN'}</div>
               </div>
               <div className="form-group">
                 <label className="label">Qeydiyyat e-poçtu <span className="req">*</span></label>
@@ -122,7 +142,7 @@ export function ForgotPasswordPage() {
           )}
 
           <div className="auth-footer" style={{ marginTop: 18 }}>
-            <Link to="/login">← Giriş səhifəsinə qayıt</Link>
+            <Link to={loginPath}>← Giriş səhifəsinə qayıt</Link>
           </div>
         </div>
       </div>

@@ -4,10 +4,12 @@ import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { EmptyState, Pagination } from '../../components/ui/Primitives';
 import { formatCurrency } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Bookmark } from 'lucide-react';
 
 export function PCACompaniesPage() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const cases = useDataStore((s) => s.pcaCases);
   const watchlists = useDataStore((s) => s.watchlists);
@@ -73,7 +75,7 @@ export function PCACompaniesPage() {
                   </thead>
                   <tbody>
                     {slice.map((c) => (
-                      <tr key={c.id} onClick={() => navigate(`/pca/company/${c.id}`)}>
+                      <tr key={c.id} onClick={() => navigate(pp(`/pca/company/${c.id}`))}>
                         <td>{isWatched(c.id) && <Bookmark size={14} fill="currentColor" style={{ color: '#f59e0b' }} />}</td>
                         <td><b>{c.name}</b></td>
                         <td className="cell-num">{c.count}</td>

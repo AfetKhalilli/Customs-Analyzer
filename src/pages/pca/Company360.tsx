@@ -4,6 +4,7 @@ import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { Tabs, StatusBadge, RiskBadge, PCARiskBadge, EmptyState, Avatar } from '../../components/ui/Primitives';
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Bookmark, ArrowLeft, ExternalLink } from 'lucide-react';
 import { toast } from '../../store/toastStore';
 import {
@@ -14,6 +15,7 @@ import type { IndividualUser } from '../../types';
 export function Company360() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const users = useDataStore((s) => s.users);
   const decls = useDataStore((s) => s.declarations);
@@ -46,7 +48,7 @@ export function Company360() {
 
   const handleOpenDecl = (declId: string) => {
     logPCAView(declId, user);
-    navigate(`/declaration/${declId}`);
+    navigate(pp(`/declaration/${declId}`));
   };
 
   const avgRisk = companyCases.length > 0 ? Math.round(companyCases.reduce((a, c) => a + c.riskScore, 0) / companyCases.length) : 0;

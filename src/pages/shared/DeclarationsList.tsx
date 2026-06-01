@@ -5,12 +5,14 @@ import { useDataStore } from '../../store/dataStore';
 import { StatusBadge, RiskBadge, EmptyState, Pagination } from '../../components/ui/Primitives';
 import { ALL_STATUSES } from '../../types';
 import { formatDate } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { DECLARATION_STATUS_LABEL } from '../../lib/i18n';
 import type { IndividualUser } from '../../types';
 
 export function DeclarationsList() {
   const user = useCurrentUser()!;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const allDecls = useDataStore((s) => s.declarations);
   const departments = useDataStore((s) => s.departments);
   const logPCAView = useDataStore((s) => s.logPCAView);
@@ -58,7 +60,7 @@ export function DeclarationsList() {
 
   const handleRowClick = (id: string) => {
     if (user.role === 'pca') logPCAView(id, user);
-    navigate(`/declaration/${id}`);
+    navigate(pp(`/declaration/${id}`));
   };
 
   const titleByRole: Record<string, string> = {

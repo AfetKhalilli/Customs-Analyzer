@@ -113,6 +113,18 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
+// Staff portal (/admin/login): FIN only — VÖEN is never used for staff login.
+// Same shape as loginSchema (so the shared LoginPage form is reused unchanged),
+// but the identifier is constrained to a 7-character FIN.
+export const staffLoginSchema = z.object({
+  loginIdentifier: z
+    .string()
+    .min(1, 'FİN daxil edin')
+    .regex(/^[A-Za-z0-9]{7}$/, 'FİN düz 7 simvol (A-Z və 0-9)'),
+  password: z.string().min(1, 'Şifrə daxil edin'),
+  rememberMe: z.boolean().optional(),
+});
+
 export const declStep1Schema = z.object({
   kind: z.enum(['Idxal', 'Ixrac', 'Tranzit']),
   department: z.string().min(1, 'Şöbə seçin'),

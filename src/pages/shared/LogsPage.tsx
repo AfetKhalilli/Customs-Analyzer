@@ -4,6 +4,7 @@ import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { EmptyState, RoleChip } from '../../components/ui/Primitives';
 import { formatDateTime, groupByDay } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { LOG_ACTION_LABEL } from '../../lib/i18n';
 import type { IndividualUser, LogAction } from '../../types';
 
@@ -12,6 +13,7 @@ const ACTION_LABELS = LOG_ACTION_LABEL;
 export function LogsPage() {
   const user = useCurrentUser()!;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const logs = useDataStore((s) => s.logs);
   const declarations = useDataStore((s) => s.declarations);
 
@@ -66,7 +68,7 @@ export function LogsPage() {
                   <div className="tg-label">{g.label}</div>
                   {g.items.map((l) => (
                     <div key={l.id} className="timeline-item" style={{ cursor: l.declarationId ? 'pointer' : 'default' }}
-                      onClick={() => { if (l.declarationId) navigate(`/declaration/${l.declarationId}`); }}>
+                      onClick={() => { if (l.declarationId) navigate(pp(`/declaration/${l.declarationId}`)); }}>
                       <div className="ti-title">
                         <b>{l.actorDisplayName}</b> <RoleChip role={l.actorRole} /> · {l.description}
                       </div>

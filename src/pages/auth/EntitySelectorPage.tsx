@@ -38,7 +38,7 @@ export function EntitySelectorPage() {
             </div>
           </div>
           <div className="auth-footer">
-            Artıq hesabınız var? <Link to="/login">Daxil olun</Link>
+            Artıq hesabınız var? <Link to="/portal/login">Daxil olun</Link>
           </div>
         </div>
       </div>

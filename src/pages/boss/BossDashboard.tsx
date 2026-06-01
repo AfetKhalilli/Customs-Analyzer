@@ -4,11 +4,13 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContai
 import { useDataStore } from '../../store/dataStore';
 import { ALL_STATUSES } from '../../types';
 import { formatDate, relativeTime } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Avatar, EmptyState } from '../../components/ui/Primitives';
 import { STATUS_META } from '../../lib/constants';
 
 export function BossDashboard() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const declarations = useDataStore((s) => s.declarations);
   const logs = useDataStore((s) => s.logs);
   const departments = useDataStore((s) => s.departments);
@@ -87,27 +89,27 @@ export function BossDashboard() {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi-card blue clickable" onClick={() => navigate('/declarations')}>
+        <div className="kpi-card blue clickable" onClick={() => navigate(pp('/declarations'))}>
           <div className="kpi-label">Ümumi sistem</div>
           <div className="kpi-value">{k.systemTotal}</div>
           <div className="kpi-hint">Bütün sənədlər</div>
         </div>
-        <div className="kpi-card purple clickable" onClick={() => navigate('/declarations?status=Yoxlanılır')}>
+        <div className="kpi-card purple clickable" onClick={() => navigate(pp('/declarations?status=Yoxlanılır'))}>
           <div className="kpi-label">Aktiv</div>
           <div className="kpi-value">{k.activeAll}</div>
           <div className="kpi-hint">İşlənməkdə</div>
         </div>
-        <div className="kpi-card green clickable" onClick={() => navigate('/declarations?status=Tamamlanmış')}>
+        <div className="kpi-card green clickable" onClick={() => navigate(pp('/declarations?status=Tamamlanmış'))}>
           <div className="kpi-label">Tamamlanmış</div>
           <div className="kpi-value">{k.completedAll}</div>
           <div className="kpi-hint">Bitmiş</div>
         </div>
-        <div className="kpi-card red clickable" onClick={() => navigate('/pca/companies')}>
+        <div className="kpi-card red clickable" onClick={() => navigate(pp('/pca/companies'))}>
           <div className="kpi-label">Yüksək risk</div>
           <div className="kpi-value">{k.highRisk}</div>
           <div className="kpi-hint">HIGH + CRITICAL</div>
         </div>
-        <div className="kpi-card orange clickable" onClick={() => navigate('/declarations?status=Yoxlanılır')}>
+        <div className="kpi-card orange clickable" onClick={() => navigate(pp('/declarations?status=Yoxlanılır'))}>
           <div className="kpi-label">SLA pozuntusu</div>
           <div className="kpi-value">{k.slaBreaches}</div>
           <div className="kpi-hint">48 saatdan çox</div>
@@ -147,14 +149,14 @@ export function BossDashboard() {
               </thead>
               <tbody>
                 {heatmap.map((row) => (
-                  <tr key={row.department} onClick={() => navigate(`/declarations?dept=${row.department}`)}>
+                  <tr key={row.department} onClick={() => navigate(pp(`/declarations?dept=${row.department}`))}>
                     <td><b>{row.department}</b></td>
                     {ALL_STATUSES.map((s) => {
                       const v = row[s] as number;
                       const meta = STATUS_META[s];
                       return (
                         <td key={s} className="cell-num"
-                            onClick={(e) => { e.stopPropagation(); if (v > 0) navigate(`/declarations?dept=${row.department}&status=${s}`); }}
+                            onClick={(e) => { e.stopPropagation(); if (v > 0) navigate(pp(`/declarations?dept=${row.department}&status=${s}`)); }}
                             style={v > 0 ? { background: meta.bg, color: meta.text, fontWeight: 600, cursor: 'pointer' } : undefined}>
                           {v || '—'}
                         </td>
@@ -177,7 +179,7 @@ export function BossDashboard() {
                 <BarChart data={topFlags} layout="vertical"
                           onClick={(e: any) => {
                             const code = e?.activePayload?.[0]?.payload?.code;
-                            if (code) navigate(`/declarations?q=${encodeURIComponent(code)}`);
+                            if (code) navigate(pp(`/declarations?q=${encodeURIComponent(code)}`));
                           }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--n-200)" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
@@ -200,7 +202,7 @@ export function BossDashboard() {
             <div className="activity-feed">
               {logs.slice(0, 20).map((l) => (
                 <div key={l.id} className="activity-item"
-                     onClick={() => l.declarationId && navigate(`/declaration/${l.declarationId}`)}
+                     onClick={() => l.declarationId && navigate(pp(`/declaration/${l.declarationId}`))}
                      style={{ cursor: l.declarationId ? 'pointer' : 'default' }}>
                   <Avatar name={l.actorDisplayName} size="sm" />
                   <div className="a-body">

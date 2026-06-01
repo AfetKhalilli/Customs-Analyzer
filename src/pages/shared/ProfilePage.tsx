@@ -4,6 +4,7 @@ import { Edit2 } from 'lucide-react';
 import { useCurrentUser, useAuthStore } from '../../store/authStore';
 import { Modal, Avatar, RoleChip } from '../../components/ui/Primitives';
 import { formatDate } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { useForm, FormProvider } from 'react-hook-form';
 import { TextField, SelectField } from '../../components/forms/Fields';
 import { CITIES, COUNTRIES } from '../../lib/constants';
@@ -15,6 +16,7 @@ type SectionEditing = null | 'personal' | 'contact' | 'address' | 'company' | 'l
 export function ProfilePage() {
   const user = useCurrentUser()!;
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const pp = usePortalPath();
   const [editing, setEditing] = React.useState<SectionEditing>(null);
 
   const dispName = user.entityType === 'individual' ? `${user.firstName} ${user.lastName}` : user.companyName;
@@ -75,7 +77,7 @@ export function ProfilePage() {
         )}
 
         <ProfileSection title="Hesab təhlükəsizliyi">
-          <p className="text-muted">Şifrəni dəyişmək üçün <Link to="/settings">Tənzimləmələrə</Link> keçin.</p>
+          <p className="text-muted">Şifrəni dəyişmək üçün <Link to={pp('/settings')}>Tənzimləmələrə</Link> keçin.</p>
         </ProfileSection>
 
         {editing === 'personal' && (
@@ -182,7 +184,7 @@ export function ProfilePage() {
       </ProfileSection>
 
       <ProfileSection title="Hesab təhlükəsizliyi">
-        <p className="text-muted">Şifrəni dəyişmək üçün <Link to="/settings">Tənzimləmələrə</Link> keçin.</p>
+        <p className="text-muted">Şifrəni dəyişmək üçün <Link to={pp('/settings')}>Tənzimləmələrə</Link> keçin.</p>
       </ProfileSection>
 
       {editing === 'company' && (

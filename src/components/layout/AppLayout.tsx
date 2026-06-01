@@ -12,8 +12,11 @@ import { useToastStore } from '../../store/toastStore';
 import { Avatar, ConfirmDialog } from '../ui/Primitives';
 import { LogoMark } from '../ui/LogoMark';
 import { relativeTime, cn } from '../../lib/utils';
+import { usePortalPath, appPath } from '../../lib/routes';
 import type { Role } from '../../types';
 
+// Nav entries use *portal-relative* resource paths; the portal prefix
+// (/portal or /admin) is applied at render time via usePortalPath().
 const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; icon: React.ReactNode }[]> = {
   user: [
     { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
@@ -34,7 +37,7 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
     { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'İnspektorlar', to: '/inspectors', icon: <Users size={18} /> },
-    { label: 'Əməkdaş İdarəetməsi', to: '/admin/staff', icon: <UserCog size={18} /> },
+    { label: 'Əməkdaş İdarəetməsi', to: '/staff', icon: <UserCog size={18} /> },
     { label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
@@ -45,8 +48,8 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
     { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Şöbələr', to: '/departments', icon: <Building2 size={18} /> },
     { label: 'İnspektorlar', to: '/inspectors', icon: <Users size={18} /> },
-    { section: 'ADMİNİSTRASİYA', label: 'Əməkdaşlar və Şöbələr', to: '/admin/staff', icon: <UserCog size={18} /> },
-    { label: 'Risk və Uyğunluq Reyestri', to: '/admin/reference', icon: <Database size={18} /> },
+    { section: 'ADMİNİSTRASİYA', label: 'Əməkdaşlar və Şöbələr', to: '/staff', icon: <UserCog size={18} /> },
+    { label: 'Risk və Uyğunluq Reyestri', to: '/reference', icon: <Database size={18} /> },
     { section: 'SİSTEM', label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
@@ -67,6 +70,7 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useCurrentUser();
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const logout = useAuthStore((s) => s.logout);
   const resetDemo = useDataStore((s) => s.resetDemo);
   const notifications = useDataStore((s) => s.notifications);
@@ -116,8 +120,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const handleLogout = () => {
+    // Capture the portal before clearing the session so we return to the
+    // matching login page (staff → /admin/login, user → /portal/login).
+    const dest = appPath(user.role, '/login');
     logout();
-    navigate('/login', { replace: true });
+    navigate(dest, { replace: true });
   };
 
   return (
@@ -150,7 +157,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <React.Fragment key={item.to + i}>
               {item.section && <div className="nav-section">{item.section}</div>}
               <NavLink
-                to={item.to}
+                to={pp(item.to)}
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setSidebarOpen(false)}
               >
@@ -220,7 +227,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     onClick={() => {
                       markNotificationRead(n.id);
                       setNotifOpen(false);
-                      if (n.link) navigate(n.link);
+                      if (n.link) navigate(pp(n.link));
                     }}
                   >
                     <div className="np-dot" />
@@ -246,10 +253,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
           {menuOpen && (
             <div className="dropdown-menu">
-              <button className="dm-item" onClick={() => { setMenuOpen(false); navigate('/profile'); }}>
+              <button className="dm-item" onClick={() => { setMenuOpen(false); navigate(pp('/profile')); }}>
                 <User size={14} /> Profil
               </button>
-              <button className="dm-item" onClick={() => { setMenuOpen(false); navigate('/settings'); }}>
+              <button className="dm-item" onClick={() => { setMenuOpen(false); navigate(pp('/settings')); }}>
                 <Settings size={14} /> Tənzimləmələr
               </button>
               <div className="dm-divider" />

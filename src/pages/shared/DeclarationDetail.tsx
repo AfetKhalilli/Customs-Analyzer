@@ -12,6 +12,7 @@ import { StatusBadge, RiskBadge, ChannelPill, Modal, Tabs, EmptyState, Avatar, R
 import { TextField, TextareaField, SelectField, FileUploaderField } from '../../components/forms/Fields';
 import { DocumentFields } from '../user/DeclarationWizard';
 import { formatDate, formatDateTime, formatCurrency, relativeTime, groupByDay, cn } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { DOCUMENT_TYPES, DOCUMENT_GROUPS, RISK_META, CURRENCIES } from '../../lib/constants';
 import { toast } from '../../store/toastStore';
 import { validateDeclaration } from '../../lib/validation';
@@ -24,6 +25,7 @@ import type { IndividualUser, FindingCategory, FindingSeverity, EscalationLevel,
 export function DeclarationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const declarations = useDataStore((s) => s.declarations);
   const users = useDataStore((s) => s.users);
@@ -60,7 +62,7 @@ export function DeclarationDetail() {
   if (!decl) {
     return (
       <div>
-        <Link to="/declarations" className="btn btn-ghost btn-sm"><ArrowLeft size={14} /> Geri</Link>
+        <Link to={pp('/declarations')} className="btn btn-ghost btn-sm"><ArrowLeft size={14} /> Geri</Link>
         <EmptyState title="Sənəd tapılmadı" hint="Bu ID-li sənəd mövcud deyil və ya silinib." />
       </div>
     );
@@ -684,6 +686,7 @@ function AiScoreRing({ score, color, label }: { score: number; color: string; la
 // ────────────────────────────────────────────────────────────────────────────
 function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorName: string | null; auditor: any }) {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const cases = useDataStore((s) => s.pcaCases);
   const findings = useDataStore((s) => s.pcaFindings);
   const penalties = useDataStore((s) => s.penalties);
@@ -914,7 +917,7 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
               İşi Yenidən Aç
             </button>
           )}
-          <button className="btn btn-ghost" onClick={() => navigate(`/pca/company/${decl.ownerId}`)}>
+          <button className="btn btn-ghost" onClick={() => navigate(pp(`/pca/company/${decl.ownerId}`))}>
             Şirkət Profilinə Keç →
           </button>
         </div>

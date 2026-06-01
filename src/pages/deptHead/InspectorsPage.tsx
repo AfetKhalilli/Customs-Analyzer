@@ -5,11 +5,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { Drawer, Avatar, EmptyState, StatusBadge, RiskBadge } from '../../components/ui/Primitives';
 import { formatDate } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import type { IndividualUser } from '../../types';
 
 export function InspectorsPage() {
   const user = useCurrentUser()!;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const users = useDataStore((s) => s.users);
   const declarations = useDataStore((s) => s.declarations);
   const departments = useDataStore((s) => s.departments);
@@ -54,7 +56,7 @@ export function InspectorsPage() {
           <h1>İnspektorlar</h1>
           <p className="text-muted">{inspectors.length} müfəttiş</p>
         </div>
-        <Link to="/admin/staff" className="btn">
+        <Link to={pp('/staff')} className="btn">
           <UserPlus size={14} /> Əməkdaş əlavə et / idarə et
         </Link>
       </div>
@@ -128,7 +130,7 @@ export function InspectorsPage() {
                 <thead><tr><th>Qeydiyyat №</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th>Qəbul Tarixi</th></tr></thead>
                 <tbody>
                   {declarations.filter((d) => d.assignedInspectorId === open.id).slice(0, 10).map((d) => (
-                    <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
+                    <tr key={d.id} onClick={() => navigate(pp(`/declaration/${d.id}`))}>
                       <td className="cell-id">{d.id.slice(-10)}</td>
                       <td><StatusBadge status={d.status} /></td>
                       <td><RiskBadge level={d.ai.riskLevel} score={d.ai.score} /></td>

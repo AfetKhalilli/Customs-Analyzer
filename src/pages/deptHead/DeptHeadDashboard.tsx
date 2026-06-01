@@ -5,11 +5,13 @@ import { useDataStore } from '../../store/dataStore';
 import { Tabs, StatusBadge, RiskBadge, Avatar, RoleChip, EmptyState } from '../../components/ui/Primitives';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { formatDate, relativeTime, groupByDay } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import type { IndividualUser } from '../../types';
 
 export function DeptHeadDashboard() {
   const user = useCurrentUser()! as IndividualUser;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const allDecls = useDataStore((s) => s.declarations);
   const users = useDataStore((s) => s.users);
   const logs = useDataStore((s) => s.logs);
@@ -44,19 +46,19 @@ export function DeptHeadDashboard() {
       <p className="text-muted">Şöbə rəisi: {user.firstName} {user.lastName}</p>
 
       <div className="kpi-grid">
-        <div className="kpi-card blue clickable"   onClick={() => navigate(`/declarations?dept=${dept}`)}>
+        <div className="kpi-card blue clickable"   onClick={() => navigate(pp(`/declarations?dept=${dept}`))}>
           <div className="kpi-label">Şöbə üzrə cəmi</div><div className="kpi-value">{total}</div>
         </div>
-        <div className="kpi-card amber clickable"  onClick={() => navigate(`/declarations?dept=${dept}&status=Yüklənib`)}>
+        <div className="kpi-card amber clickable"  onClick={() => navigate(pp(`/declarations?dept=${dept}&status=Yüklənib`))}>
           <div className="kpi-label">Yüklənib</div><div className="kpi-value">{pending}</div>
         </div>
-        <div className="kpi-card purple clickable" onClick={() => navigate(`/declarations?dept=${dept}&status=Yoxlanılır`)}>
+        <div className="kpi-card purple clickable" onClick={() => navigate(pp(`/declarations?dept=${dept}&status=Yoxlanılır`))}>
           <div className="kpi-label">Yoxlanılır</div><div className="kpi-value">{inReview}</div>
         </div>
-        <div className="kpi-card red clickable"    onClick={() => navigate(`/declarations?dept=${dept}&status=Yoxlanılır`)}>
+        <div className="kpi-card red clickable"    onClick={() => navigate(pp(`/declarations?dept=${dept}&status=Yoxlanılır`))}>
           <div className="kpi-label">SLA Riski</div><div className="kpi-value">{slaRisk}</div><div className="kpi-hint">48 saatdan çox</div>
         </div>
-        <div className="kpi-card green clickable"  onClick={() => navigate(`/declarations?dept=${dept}&status=Tamamlanmış`)}>
+        <div className="kpi-card green clickable"  onClick={() => navigate(pp(`/declarations?dept=${dept}&status=Tamamlanmış`))}>
           <div className="kpi-label">Bu həftə tamam</div><div className="kpi-value">{completedThisWeek}</div>
         </div>
       </div>
@@ -86,7 +88,7 @@ export function DeptHeadDashboard() {
             {deptLogs.length === 0 ? <p className="text-muted">Fəaliyyət yoxdur</p> : (
               <div className="activity-feed">
                 {deptLogs.map((l) => (
-                  <div key={l.id} className="activity-item" onClick={() => navigate(`/declaration/${l.declarationId}`)} style={{ cursor: 'pointer' }}>
+                  <div key={l.id} className="activity-item" onClick={() => navigate(pp(`/declaration/${l.declarationId}`))} style={{ cursor: 'pointer' }}>
                     <Avatar name={l.actorDisplayName} size="sm" />
                     <div className="a-body">
                       <div className="a-text"><b>{l.actorDisplayName}</b> · {l.description}</div>
@@ -119,7 +121,7 @@ export function DeptHeadDashboard() {
                       const insp = users.find((u) => u.id === d.assignedInspectorId);
                       const inspName = insp?.entityType === 'individual' ? `${insp.firstName} ${insp.lastName}` : '—';
                       return (
-                        <tr key={d.id} onClick={() => navigate(`/declaration/${d.id}`)}>
+                        <tr key={d.id} onClick={() => navigate(pp(`/declaration/${d.id}`))}>
                           <td className="cell-id">{d.id.slice(-10)}</td>
                           <td>{d.ownerDisplayName}</td>
                           <td><StatusBadge status={d.status} /></td>
@@ -146,7 +148,7 @@ export function DeptHeadDashboard() {
                     const a = allDecls.filter((d) => d.assignedInspectorId === i.id && !['Tamamlanmış', 'Rədd'].includes(d.status)).length;
                     const c = allDecls.filter((d) => d.assignedInspectorId === i.id && d.status === 'Tamamlanmış').length;
                     return (
-                      <tr key={i.id} onClick={() => navigate('/inspectors')}>
+                      <tr key={i.id} onClick={() => navigate(pp('/inspectors'))}>
                         <td><Avatar name={`${i.firstName} ${i.lastName}`} size="sm" /> {i.firstName} {i.lastName}</td>
                         <td className="mono">{i.fin}</td>
                         <td>{a}</td>

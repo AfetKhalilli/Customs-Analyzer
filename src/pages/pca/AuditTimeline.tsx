@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useDataStore } from '../../store/dataStore';
 import { EmptyState } from '../../components/ui/Primitives';
 import { formatDateTime, groupByDay } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { Activity } from 'lucide-react';
 import { LOG_ACTION_LABEL } from '../../lib/i18n';
 
 export function AuditTimeline() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const logs = useDataStore((s) => s.logs);
   const declarations = useDataStore((s) => s.declarations);
 
@@ -57,7 +59,7 @@ export function AuditTimeline() {
                         {l.declarationId && (
                           <>
                             {' · '}
-                            <a href="#" onClick={(e) => { e.preventDefault(); navigate(`/declaration/${l.declarationId}`); }}>
+                            <a href="#" onClick={(e) => { e.preventDefault(); navigate(pp(`/declaration/${l.declarationId}`)); }}>
                               {l.declarationId.slice(-8)}
                             </a>
                           </>

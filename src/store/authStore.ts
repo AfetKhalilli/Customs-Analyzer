@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppUser, IndividualUser, CompanyUser } from '../types';
+import type { AppUser, IndividualUser, CompanyUser, Role } from '../types';
 import { useDataStore } from './dataStore';
 
 interface AuthState {
@@ -8,7 +8,9 @@ interface AuthState {
   rememberMe: boolean;
   initialized: boolean;
   init: () => void;
-  login: (identifier: string, password: string, rememberMe?: boolean) => { ok: boolean; error?: string; userId?: string };
+  // allowedRoles: portal isolation guard. When provided, login is REJECTED
+  // (no session created) if the matched account's role is not in the list.
+  login: (identifier: string, password: string, rememberMe?: boolean, allowedRoles?: Role[]) => { ok: boolean; error?: string; userId?: string };
   logout: () => void;
   register: (user: AppUser) => { ok: boolean; error?: string };
   changePassword: (current: string, next: string) => { ok: boolean; error?: string };
@@ -20,7 +22,7 @@ interface AuthState {
   //    link; here we surface it directly to the UI for the demo.
   // 2) resetPassword(token, newPassword) consumes the token and rewrites the
   //    password. Tokens are single-use and expire after 30 minutes.
-  requestPasswordReset: (identifier: string, email: string) => { ok: boolean; error?: string; token?: string };
+  requestPasswordReset: (identifier: string, email: string, allowedRoles?: Role[]) => { ok: boolean; error?: string; token?: string };
   resetPassword: (token: string, newPassword: string) => { ok: boolean; error?: string };
 }
 
@@ -38,7 +40,7 @@ export const useAuthStore = create<AuthState>()(
       initialized: false,
       init: () => set({ initialized: true }),
 
-      login: (identifier, password, rememberMe = false) => {
+      login: (identifier, password, rememberMe = false, allowedRoles) => {
         const users = useDataStore.getState().users;
         const isTin = /^\d{10}$/.test(identifier);
         const idUpper = identifier.toUpperCase();
@@ -52,6 +54,17 @@ export const useAuthStore = create<AuthState>()(
         if (!found) return { ok: false, error: isTin ? 'Bu VÖEN ilə istifadəçi tapılmadı' : 'Bu FIN ilə istifadəçi tapılmadı' };
         if (found.password !== password) return { ok: false, error: 'Şifrə yanlışdır' };
         if (found.status === 'suspended') return { ok: false, error: 'Hesabınız müvəqqəti dayandırılıb' };
+
+        // ── PORTAL ISOLATION ───────────────────────────────────────────────
+        // Role is verified BEFORE a session is created. A valid credential for
+        // the wrong portal is rejected outright — no currentUserId is set, so
+        // there is no way to be redirected into the other portal.
+        if (allowedRoles && !allowedRoles.includes(found.role)) {
+          const error = found.role === 'user'
+            ? 'Bu istifadəçi hesabıdır. İstifadəçi Portalından (/portal) daxil olun.'
+            : 'Bu əməkdaş hesabıdır. Əməkdaş Portalından (/admin) daxil olun.';
+          return { ok: false, error };
+        }
 
         set({ currentUserId: found.id, rememberMe });
         return { ok: true, userId: found.id };
@@ -92,7 +105,7 @@ export const useAuthStore = create<AuthState>()(
         return { ok: true };
       },
 
-      requestPasswordReset: (identifier, email) => {
+      requestPasswordReset: (identifier, email, allowedRoles) => {
         const users = useDataStore.getState().users;
         const id = identifier.trim();
         const idUpper = id.toUpperCase();
@@ -103,7 +116,10 @@ export const useAuthStore = create<AuthState>()(
           }
           return (u as CompanyUser).tin === id && u.email.toLowerCase() === cleanEmail;
         });
-        if (!user) {
+        // Portal isolation: an account from the wrong portal is treated exactly
+        // like "not found" — same generic message, so neither portal can be
+        // used to probe whether an account exists in the other.
+        if (!user || (allowedRoles && !allowedRoles.includes(user.role))) {
           // Generic message — do not leak which field was wrong (prevents
           // identifier/email enumeration via the reset endpoint).
           return { ok: false, error: 'FİN/VÖEN və e-poçt cütü tapılmadı' };

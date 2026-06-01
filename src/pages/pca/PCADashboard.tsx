@@ -4,12 +4,14 @@ import { useDataStore } from '../../store/dataStore';
 import { useCurrentUser } from '../../store/authStore';
 import { PCAStatusBadge, PCARiskBadge, EmptyState, Pagination } from '../../components/ui/Primitives';
 import { formatDate, formatCurrency, relativeTime } from '../../lib/utils';
+import { usePortalPath } from '../../lib/routes';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { PCA_STATUS_LABEL, ANOMALY_PATTERN_LABEL } from '../../lib/i18n';
 import type { PCAStatus, PCARiskBand } from '../../types';
 
 export function PCADashboard() {
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const user = useCurrentUser()!;
   const cases = useDataStore((s) => s.pcaCases);
   const anomalies = useDataStore((s) => s.pcaAnomalies);
@@ -71,7 +73,7 @@ export function PCADashboard() {
 
   const openCase = (declarationId: string) => {
     logPCAView(declarationId, user);
-    navigate(`/declaration/${declarationId}`);
+    navigate(pp(`/declaration/${declarationId}`));
   };
 
   return (
@@ -84,7 +86,7 @@ export function PCADashboard() {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi-card blue clickable" onClick={() => navigate('/pca/companies')}>
+        <div className="kpi-card blue clickable" onClick={() => navigate(pp('/pca/companies'))}>
           <div className="kpi-label">Ümumi Audit İşləri</div>
           <div className="kpi-value">{k.total}</div>
           <div className="kpi-hint">Bütün audit işləri</div>
@@ -155,7 +157,7 @@ export function PCADashboard() {
                 </thead>
                 <tbody>
                   {topCompanies.map((c) => (
-                    <tr key={c.id} onClick={() => navigate(`/pca/company/${c.id}`)}>
+                    <tr key={c.id} onClick={() => navigate(pp(`/pca/company/${c.id}`))}>
                       <td><b>{c.name}</b></td>
                       <td className="cell-num">{c.count}</td>
                       <td className="cell-num">{c.avgScore}</td>
@@ -173,7 +175,7 @@ export function PCADashboard() {
         <div className="card mb-3">
           <div className="card-header">
             <h3><AlertTriangle size={16} style={{ verticalAlign: 'middle', color: '#f97316' }} /> Aşkarlanmış Anomaliyalar</h3>
-            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/pca/anomalies'); }} style={{ marginLeft: 'auto', fontSize: 13 }}>Hamısı →</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigate(pp('/pca/anomalies')); }} style={{ marginLeft: 'auto', fontSize: 13 }}>Hamısı →</a>
           </div>
           <div className="card-body">
             {anomalies.filter((a) => !a.dismissed).slice(0, 5).map((a) => (

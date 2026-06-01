@@ -17,6 +17,7 @@ import {
 } from '../../lib/constants';
 import { useCurrentUser } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
+import { usePortalPath } from '../../lib/routes';
 import { runAI } from '../../lib/ai';
 import { toast } from '../../store/toastStore';
 // dynamic departments come via Step1 -> useDataStore
@@ -37,6 +38,7 @@ interface WizardState {
 export function DeclarationWizard() {
   const user = useCurrentUser()!;
   const navigate = useNavigate();
+  const pp = usePortalPath();
   const addDeclaration = useDataStore((s) => s.addDeclaration);
 
   const [step, setStep] = React.useState(1);
@@ -120,10 +122,10 @@ export function DeclarationWizard() {
               setSubmitErrors([]);
               if (ids.length === 1) {
                 toast.success('Sənəd təqdim edildi');
-                navigate(`/declaration/${ids[0]}`);
+                navigate(pp(`/declaration/${ids[0]}`));
               } else {
                 toast.success(`${ids.length} ayrı bəyannamə yaradıldı`);
-                navigate('/declarations');
+                navigate(pp('/declarations'));
               }
             } catch (e) {
               if (e instanceof ValidationError) {
