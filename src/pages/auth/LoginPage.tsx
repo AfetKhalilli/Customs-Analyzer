@@ -51,15 +51,13 @@ export function LoginPage({ portal = 'user' }: { portal?: 'user' | 'staff' }) {
     <div className="auth-shell">
       <div className="auth-hero">
         <div className="hero-brand">
-          <LogoMark size={56} />
+          <LogoMark />
           <div className="hb-title">Customs Analyzer</div>
         </div>
         <div className="hero-body">
           <h2>Gömrük sənədləri analizi üçün idarəetmə panelinə xoş gəldiniz!</h2>
           <p>
-            Gömrük sənədlərinizi avtomatik analiz edin, tarif və vergi fərqlərini dərhal öyrənin.
-            Sistem vasitəsilə potensial riskləri və uyğunsuzluqları vaxtında müəyyən edin və iş
-            prosesinizi daha səmərəli hala gətirin.
+           Gömrük bəyannamələrinin təqdim edilməsi, emalı və monitorinqi proseslərini vahid rəqəmsal platforma üzərindən həyata keçirə bilərsiniz.
           </p>
         </div>
       </div>
@@ -78,14 +76,11 @@ export function LoginPage({ portal = 'user' }: { portal?: 'user' | 'staff' }) {
                 name="loginIdentifier"
                 label={isStaff ? 'FİN nömrəsi' : 'FİN nömrəsi və ya VÖEN'}
                 required
-                hint={isStaff
-                  ? '7 simvolluq FİN kodu (əməkdaşlar yalnız FİN ilə daxil olur)'
-                  : 'Fiziki şəxslər üçün 7 simvolluq FİN, hüquqi şəxslər üçün 10 rəqəmli VÖEN'}
                 placeholder="FİN kodunuzu daxil edin"
                 transform={(v) => v.toUpperCase()}
               />
               <PasswordField name="password" label="Şifrə" required placeholder="Şifrənizi daxil edin" />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <CheckboxField name="rememberMe" label="Məni xatırla" />
                 <Link to={isStaff ? '/admin/forgot-password' : '/forgot-password'} style={{ fontSize: 13, fontWeight: 600 }}>
                   Şifrəni unutmusunuz?
