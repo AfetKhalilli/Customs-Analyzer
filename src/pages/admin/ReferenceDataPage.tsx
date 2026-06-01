@@ -27,7 +27,7 @@ export function ReferenceDataPage() {
     <div>
       <div className="section-header">
         <div>
-          <h1>Risk və Uyğunluq Reyestri</h1>
+          <h1>Risklərin Monitorinqi və Analitik Təhlil Sistemi</h1>
           <p className="text-muted">Risk qaydaları, skor hədləri, HS kodları, ölkə riski, qiymət bandları və broker reyestri — gömrük və PCA auditi üçün vahid mənbə</p>
         </div>
       </div>

@@ -49,7 +49,7 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
     { label: 'Şöbələr', to: '/departments', icon: <Building2 size={18} /> },
     { label: 'İnspektorlar', to: '/inspectors', icon: <Users size={18} /> },
     { section: 'ADMİNİSTRASİYA', label: 'Əməkdaşlar və Şöbələr', to: '/staff', icon: <UserCog size={18} /> },
-    { label: 'Risk və Uyğunluq Reyestri', to: '/reference', icon: <Database size={18} /> },
+    { label: 'Risklərin Monitorinqi və Analitik Təhlil Sistemi', to: '/reference', icon: <Database size={18} /> },
     { section: 'SİSTEM', label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
@@ -162,7 +162,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 onClick={() => setSidebarOpen(false)}
               >
                 {item.icon}
-                <span>{item.label}</span>
+                <span>
+                  {item.label.split(' ').length > 3
+                    ? <>
+                      {item.label.split(' ').slice(0, 3).join(' ')}
+                      <br />
+                      {item.label.split(' ').slice(3).join(' ')}
+                    </>
+                    : item.label}
+                </span>
               </NavLink>
             </React.Fragment>
           ))}

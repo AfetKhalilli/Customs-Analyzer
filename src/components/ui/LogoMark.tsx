@@ -8,7 +8,7 @@ interface LogoMarkProps {
 export function LogoMark({ size = 40, className }: LogoMarkProps) {
   return (
     <img
-      src="../../../dist/assets/remove-bg.png"
+      src="../../../dist/assets/remove-bg-(6).svg"
       alt="Azərbaycan Respublikası Dövlət Gömrük Komitəsi"
       width={size}
       height={size}
