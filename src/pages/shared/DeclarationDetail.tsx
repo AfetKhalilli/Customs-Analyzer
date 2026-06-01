@@ -85,6 +85,21 @@ export function DeclarationDetail() {
 
   const declLogs = logs.filter((l) => l.declarationId === decl.id).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
+  // Audit confidentiality: the declarant (a regular "user") sees the outcomes
+  // that concern them (decisions, correction/explanation requests, penalties,
+  // findings) but NOT the internal PCA audit process trail (who viewed it, when
+  // the audit started, escalations, case open/close, and free-text audit notes).
+  // Every supervisory/audit role keeps the full trail.
+  const INTERNAL_AUDIT_ACTIONS = new Set([
+    'VIEWED_BY_PCA', 'AUDIT_STARTED', 'CASE_ESCALATED', 'CASE_CLOSED',
+    'CASE_REOPENED', 'INSPECTION_DEADLINE',
+  ]);
+  const visibleLogs = (isOwner && user.role === 'user')
+    ? declLogs.filter((l) =>
+        !INTERNAL_AUDIT_ACTIONS.has(l.action) &&
+        !(l.action === 'COMMENT' && /^Audit qeydi:/.test(l.description)))
+    : declLogs;
+
   const handleStartReview = () => {
     const r = changeStatus(decl.id, 'Yoxlanılır', user);
     if (r.ok) toast.success('Status yeniləndi: Yoxlanılır'); else toast.error(r.error ?? 'Xəta');
@@ -114,7 +129,6 @@ export function DeclarationDetail() {
   };
 
   const ringColor = RISK_META[decl.ai.riskLevel].text;
-  const ringAngle = (decl.ai.score / 100) * 360;
 
   // L1 validation report — deterministic, computed from current declaration state.
   const validation = React.useMemo(() => validateDeclaration({
@@ -162,7 +176,7 @@ export function DeclarationDetail() {
               <div>{decl.customsPoint}</div>
             </div>
             <div>
-              <small className="text-muted">Təyin Olunmuş Müfəttiş</small>
+              <small className="text-muted">Təyin Olunmuş İnspektor</small>
               <div>{inspectorName ?? '— Təyin olunmayıb —'}</div>
             </div>
             <div>
@@ -216,13 +230,22 @@ export function DeclarationDetail() {
             <div className="banner warning mt-3">
               <AlertTriangle size={20} />
               <div className="b-body">
-                <div className="b-title">Düzəliş tələbi: {decl.correctionRequest.summary}</div>
-                <div>{decl.correctionRequest.details}</div>
-                <small>Tələb edən: {decl.correctionRequest.inspectorDisplayName} · {relativeTime(decl.correctionRequest.requestedAt)}</small>
+                <div className="b-title">Düzəliş tələb olunur</div>
+                <div><b>Səbəb:</b> {decl.correctionRequest.summary}</div>
+                {decl.correctionRequest.details && <div style={{ marginTop: 2 }}>{decl.correctionRequest.details}</div>}
+                <small className="text-muted">
+                  Tələb edən: {decl.correctionRequest.inspectorDisplayName} · {relativeTime(decl.correctionRequest.requestedAt)}
+                </small>
                 {isOwner && (
-                  <div style={{ marginTop: 8 }}>
-                    <b>Növbəti addım:</b> Aşağıdakı "Sənədlər" sekmesinə keçin, müvafiq sənədi yeniləyin və yalnız hər şey hazır olduqda <i>"Yenidən təqdim et"</i> düyməsini sıxın. Bu səhifəyə qayıtmaq düzəlişi avtomatik təqdim etmir.
-                  </div>
+                  <ol style={{ margin: '10px 0 4px', paddingLeft: 18, lineHeight: 1.7 }}>
+                    <li>«Sənədlər» bölməsinə keçin və müvafiq sənədi yeniləyin.</li>
+                    <li>Bütün düzəlişlər hazır olduqda «Yenidən təqdim et» düyməsini sıxın.</li>
+                  </ol>
+                )}
+                {isOwner && (
+                  <small className="text-muted" style={{ display: 'block', marginTop: 4 }}>
+                    Dəyişiklikləriniz avtomatik göndərilmir — sənəd yalnız «Yenidən təqdim et» düyməsi ilə təqdim olunur.
+                  </small>
                 )}
               </div>
             </div>
@@ -267,7 +290,7 @@ export function DeclarationDetail() {
             )}
             {canManage && (
               <button className="btn btn-secondary" onClick={() => setReassignOpen(true)}>
-                <UserCog size={14} /> Müfəttişi dəyiş
+                <UserCog size={14} /> İnspektoru dəyiş
               </button>
             )}
             {isPCA && (
@@ -285,7 +308,7 @@ export function DeclarationDetail() {
           { value: 'documents', label: 'Sənədlər', count: decl.documents.length },
           { value: 'ai', label: 'AI Analizi' },
           { value: 'comments', label: 'Şərhlər', count: decl.comments.length },
-          { value: 'history', label: 'Tarixçə', count: declLogs.length },
+          { value: 'history', label: 'Tarixçə', count: visibleLogs.length },
           ...(isPCA ? [{ value: 'pca', label: 'PCA Audit Paneli' }] : []),
         ]}
       />
@@ -348,15 +371,7 @@ export function DeclarationDetail() {
           <div className="card-body">
             <div className="ai-panel">
               <div style={{ display: 'grid', placeItems: 'center', position: 'relative' }}>
-                <div
-                  className="ai-score-circle"
-                  style={{ position: 'relative', '--ring-color': ringColor, '--ring-angle': `${ringAngle}deg` } as any}
-                >
-                  <div className="inner">
-                    <div className="v">{decl.ai.score}</div>
-                    <div className="l">{RISK_META[decl.ai.riskLevel].label}</div>
-                  </div>
-                </div>
+                <AiScoreRing score={decl.ai.score} color={ringColor} label={RISK_META[decl.ai.riskLevel].label} />
                 <div className="mt-3"><ChannelPill channel={decl.ai.selectivityChannel} /></div>
               </div>
               <div>
@@ -513,11 +528,11 @@ export function DeclarationDetail() {
       {tab === 'history' && (
         <div className="card">
           <div className="card-body">
-            {declLogs.length === 0 ? (
+            {visibleLogs.length === 0 ? (
               <p className="text-muted">Hələ giriş yoxdur</p>
             ) : (
               <div className="timeline">
-                {groupByDay(declLogs).map((g) => (
+                {groupByDay(visibleLogs).map((g) => (
                   <div key={g.label} className="timeline-group">
                     <div className="tg-label">{g.label}</div>
                     {g.items.map((l) => (
@@ -560,7 +575,7 @@ export function DeclarationDetail() {
         inspectors={deptInspectors.map((i) => ({ id: i.id, label: i.entityType === 'individual' ? `${i.firstName} ${i.lastName} — ${(i as IndividualUser).fin}` : i.companyName }))}
         onConfirm={(newId) => {
           assignInspector(decl.id, newId, user);
-          toast.success('Müfəttiş yeniləndi');
+          toast.success('İnspektor yeniləndi');
           setReassignOpen(false);
         }}
       />
@@ -596,6 +611,54 @@ export function DeclarationDetail() {
           />
         );
       })()}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Animated AI risk score ring. Replaces the static conic-gradient frame with a
+// smoothly-filling SVG stroke + a count-up number, so the score reads as a live
+// gauge rather than a fixed image. Re-animates whenever the score changes (e.g.
+// after a resubmission re-runs the AI).
+// ────────────────────────────────────────────────────────────────────────────
+function AiScoreRing({ score, color, label }: { score: number; color: string; label: string }) {
+  const R = 66;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+  const [progress, setProgress] = React.useState(0);
+  const [shown, setShown] = React.useState(0);
+
+  React.useEffect(() => {
+    // Kick the stroke fill on the next frame so the CSS transition runs.
+    const start = setTimeout(() => setProgress(score), 60);
+    // Eased count-up for the numeric value.
+    let raf = 0;
+    let t0 = 0;
+    const dur = 900;
+    const tick = (now: number) => {
+      if (!t0) t0 = now;
+      const k = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      setShown(Math.round(score * eased));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { clearTimeout(start); cancelAnimationFrame(raf); };
+  }, [score]);
+
+  const offset = CIRCUMFERENCE - (progress / 100) * CIRCUMFERENCE;
+  return (
+    <div className="ai-score-ring" style={{ '--ring-color': color } as React.CSSProperties}>
+      <svg viewBox="0 0 160 160" width="170" height="170" aria-hidden>
+        <circle className="asr-track" cx="80" cy="80" r={R} />
+        <circle
+          className="asr-progress" cx="80" cy="80" r={R}
+          style={{ strokeDasharray: CIRCUMFERENCE, strokeDashoffset: offset }}
+        />
+      </svg>
+      <div className="asr-inner">
+        <div className="asr-value">{shown}</div>
+        <div className="asr-label">{label}</div>
+      </div>
     </div>
   );
 }
@@ -657,9 +720,9 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
   const decisionSummary = (() => {
     if (decl.status === 'Tamamlanmış') {
       if (decl.rejectReason) return { verdict: 'Rədd edildikdən sonra bağlandı', tone: 'error' as const, detail: decl.rejectReason };
-      return { verdict: 'Təsdiq olundu və bağlandı', tone: 'success' as const, detail: 'Müfəttiş təsdiqindən sonra sistem tərəfindən bağlandı.' };
+      return { verdict: 'Təsdiq olundu və bağlandı', tone: 'success' as const, detail: 'İnspektor təsdiqindən sonra sistem tərəfindən bağlandı.' };
     }
-    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq Edilib', tone: 'success' as const, detail: 'Müfəttiş sənədi təsdiqlədi.' };
+    if (decl.status === 'Təsdiq') return { verdict: 'Təsdiq Edilib', tone: 'success' as const, detail: 'İnspektor sənədi təsdiqlədi.' };
     if (decl.status === 'Rədd') return { verdict: 'Rədd Edilib', tone: 'error' as const, detail: decl.rejectReason ?? 'Səbəb göstərilməyib' };
     return { verdict: decl.status, tone: 'info' as const, detail: 'Sənəd hələ qiymətləndirmə altındadır.' };
   })();
@@ -705,7 +768,7 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
         <p className="text-muted">{decl.ai.reasoning || 'Sistem izahatı boşdur.'}</p>
         <div className="form-row cols-2 mb-2">
           <div>
-            <small className="text-muted">Müfəttiş</small>
+            <small className="text-muted">İnspektor</small>
             <div>{inspectorName ?? '— Təyin olunmayıb —'}</div>
           </div>
           <div>
@@ -717,9 +780,9 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
         <div className="divider" />
 
         {/* INSPECTOR FINDINGS */}
-        <h4>3. Müfəttiş tapıntıları və qərarları</h4>
+        <h4>3. İnspektor tapıntıları və qərarları</h4>
         {inspectorLogs.length === 0 ? (
-          <p className="text-muted">Müfəttiş tərəfindən qeydə alınmış əməliyyat yoxdur.</p>
+          <p className="text-muted">İnspektor tərəfindən qeydə alınmış əməliyyat yoxdur.</p>
         ) : (
           <div className="timeline" style={{ marginTop: 6 }}>
             {inspectorLogs.slice(0, 10).map((l) => (
@@ -824,17 +887,26 @@ function PCAAuditPanel({ decl, inspectorName, auditor }: { decl: any; inspectorN
           <button className="btn" onClick={() => setFindingOpen(true)} disabled={!ourCase || ourCase.status === 'Closed'}>
             Tapıntı Aç
           </button>
-          {ourCase && ourCase.status !== 'Pending' && ourCase.status !== 'Closed' && (
+          {/* Penalty + escalation are always surfaced once a case exists (they
+              are listed in the panel description), but stay disabled until the
+              audit has actually started, with an explanatory tooltip. */}
+          {ourCase && ourCase.status !== 'Closed' && (
             <>
-              <button className="btn btn-danger" onClick={() => setPenaltyOpen(true)}>
+              <button className="btn btn-danger" onClick={() => setPenaltyOpen(true)}
+                disabled={ourCase.status === 'Pending'}
+                title={ourCase.status === 'Pending' ? 'Əvvəlcə işi «Auditə Götür» ilə başladın' : undefined}>
                 Cərimə Tətbiq Et
               </button>
-              <button className="btn btn-secondary" onClick={() => setEscalateOpen(true)}>
+              <button className="btn btn-secondary" onClick={() => setEscalateOpen(true)}
+                disabled={ourCase.status === 'Pending'}
+                title={ourCase.status === 'Pending' ? 'Əvvəlcə işi «Auditə Götür» ilə başladın' : undefined}>
                 Yuxarı Orqana Eskalə Et
               </button>
-              <button className="btn btn-success" onClick={() => setCloseOpen(true)}>
-                İşi Bağla
-              </button>
+              {ourCase.status !== 'Pending' && (
+                <button className="btn btn-success" onClick={() => setCloseOpen(true)}>
+                  İşi Bağla
+                </button>
+              )}
             </>
           )}
           {ourCase && ourCase.status === 'Closed' && (
@@ -1362,8 +1434,8 @@ function ReassignModal({ open, onClose, onConfirm, inspectors, currentId }: { op
   const [pick, setPick] = React.useState('');
   React.useEffect(() => { if (open) setPick(currentId ?? ''); }, [open, currentId]);
   return (
-    <Modal open={open} onClose={onClose} title="Müfəttişi dəyiş"
-      footer={<><button className="btn btn-secondary" onClick={onClose}>Ləğv et</button><button className="btn" onClick={() => { if (!pick) { toast.error('Müfəttiş seçin'); return; } onConfirm(pick); }}>Dəyiş</button></>}>
+    <Modal open={open} onClose={onClose} title="İnspektoru dəyiş"
+      footer={<><button className="btn btn-secondary" onClick={onClose}>Ləğv et</button><button className="btn" onClick={() => { if (!pick) { toast.error('İnspektor seçin'); return; } onConfirm(pick); }}>Dəyiş</button></>}>
       <div className="form-group">
         <label className="label">Yeni müfəttiş</label>
         <select className="select" value={pick} onChange={(e) => setPick(e.target.value)}>
@@ -1455,7 +1527,11 @@ function DocumentsTab({ decl, viewerRole, canEdit = false, onEdit }: { decl: any
                             <div className="doc-name" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <b>{meta?.label ?? d.typeCode}</b>
                               <span className="text-muted">— {d.fileName}</span>
-                              {d.isComplete ? (
+                              {decl.status === 'Düzəliş Tələb Olunur' ? (
+                                <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }} title="Sənəd düzəliş üçün geri qaytarılıb — yenidən təqdim tələb olunur">
+                                  Düzəliş tələb olunur
+                                </span>
+                              ) : d.isComplete ? (
                                 <span className="badge" style={{ background: '#d1fae5', color: '#065f46' }}>Tamamlanıb</span>
                               ) : (
                                 <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>Yarımçıq</span>

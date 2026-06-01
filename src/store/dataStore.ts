@@ -72,6 +72,7 @@ interface DataState {
   updatePCAFinding: (id: string, patch: Partial<PCAFinding>) => void;
   toggleWatchlist: (auditorId: string, companyId: string) => void;
   dismissAnomaly: (id: string) => void;
+  restoreAnomaly: (id: string) => void;
   logPCAView: (declarationId: string, auditor: AppUser) => void;
 
   // PCA workflow actions (new — full business operations)
@@ -371,7 +372,7 @@ export const useDataStore = create<DataState>()(
           get().addLog({
             declarationId: id, actorId: 'system', actorRole: 'user',
             actorDisplayName: 'Sistem', action: 'ASSIGNED',
-            description: `Müfəttiş təyin olundu: ${dispName(assigned)}`,
+            description: `İnspektor təyin olundu: ${dispName(assigned)}`,
           });
           get().pushNotification({
             userId: assigned.id, title: 'Yeni Sənəd Təyinatı',
@@ -590,7 +591,7 @@ export const useDataStore = create<DataState>()(
         get().addLog({
           declarationId: declId, actorId: actor.id, actorRole: actor.role,
           actorDisplayName: dispName(actor), action: 'REASSIGNED',
-          description: `Müfəttiş dəyişdirildi: ${dispName(insp)}`,
+          description: `İnspektor dəyişdirildi: ${dispName(insp)}`,
         });
         get().pushNotification({
           userId: inspectorId, title: 'Sənəd təyin olundu',
@@ -733,6 +734,10 @@ export const useDataStore = create<DataState>()(
 
       dismissAnomaly: (id) => set((s) => ({
         pcaAnomalies: s.pcaAnomalies.map((a) => a.id === id ? { ...a, dismissed: true } : a),
+      })),
+
+      restoreAnomaly: (id) => set((s) => ({
+        pcaAnomalies: s.pcaAnomalies.map((a) => a.id === id ? { ...a, dismissed: false } : a),
       })),
 
       logPCAView: (declarationId, auditor) => {

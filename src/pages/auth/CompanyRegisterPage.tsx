@@ -91,7 +91,7 @@ export function CompanyRegisterPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Gömrük Analizatoru</div>
+          <div className="hb-title">Customs Analyzer</div>
         </div>
         <div className="hero-body">
           <h2>Hüquqi şəxs hesabı yaradın</h2>

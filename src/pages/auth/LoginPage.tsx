@@ -37,7 +37,7 @@ export function LoginPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Gömrük Analizatoru</div>
+          <div className="hb-title">Customs Analyzer</div>
         </div>
         <div className="hero-body">
           <h2>Gömrük sənədləri analizi üçün idarəetmə panelinə xoş gəldiniz!</h2>
@@ -76,17 +76,6 @@ export function LoginPage() {
           </FormProvider>
           <div className="auth-footer">
             Hesabınız yoxdur? <Link to="/register">Qeydiyyatdan keçin</Link>
-          </div>
-          <div style={{ marginTop: 22, padding: 14, background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: 10, fontSize: 12, color: 'var(--n-600)' }}>
-            <strong style={{ color: 'var(--n-800)', fontSize: 12.5 }}>Demo girişləri:</strong>
-            <div style={{ marginTop: 8, lineHeight: 1.75 }}>
-              <div><b>Fiziki:</b> <span className="mono">7CA8FB1</span> / User1234</div>
-              <div><b>Hüquqi:</b> <span className="mono">1234567890</span> / Company123</div>
-              <div><b>Müfəttiş:</b> <span className="mono">INS1000</span> / Inspector123</div>
-              <div><b>Şöbə Rəisi:</b> <span className="mono">DH02000</span> / Depthead123 <em style={{opacity:.7}}>(Qida şöbəsi)</em></div>
-              <div><b>Boss:</b> <span className="mono">BOSS001</span> / Boss12345</div>
-              <div><b>PCA:</b> <span className="mono">PCA0001</span> / Pcaaudit123</div>
-            </div>
           </div>
         </div>
       </div>

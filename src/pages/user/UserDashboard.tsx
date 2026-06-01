@@ -73,7 +73,7 @@ export function UserDashboard() {
         <div className="kpi-card amber clickable" onClick={() => setStatusFilter('Yüklənib')}>
           <div className="kpi-label">Yüklənib</div>
           <div className="kpi-value">{k.pending}</div>
-          <div className="kpi-hint">Müfəttiş təyini gözlənilir</div>
+          <div className="kpi-hint">İnspektor təyini gözlənilir</div>
         </div>
         <div className="kpi-card purple clickable" onClick={() => setStatusFilter('Yoxlanılır')}>
           <div className="kpi-label">Yoxlanılır</div>

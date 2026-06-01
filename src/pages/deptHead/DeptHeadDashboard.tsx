@@ -63,9 +63,9 @@ export function DeptHeadDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
         <div className="card">
-          <div className="card-header"><h3>Müfəttiş yükü</h3></div>
+          <div className="card-header"><h3>İnspektor yükü</h3></div>
           <div className="card-body" style={{ height: 280 }}>
-            {chartData.length === 0 ? <EmptyState title="Müfəttiş yoxdur" /> : (
+            {chartData.length === 0 ? <EmptyState title="İnspektor yoxdur" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--n-200)" />
@@ -104,7 +104,7 @@ export function DeptHeadDashboard() {
         <div className="card-body">
           <Tabs value={tab} onChange={setTab} items={[
             { value: 'active', label: 'Aktiv işlər', count: activeDecls.length },
-            { value: 'inspectors', label: 'Müfəttişlər', count: inspectors.length },
+            { value: 'inspectors', label: 'İnspektorlar', count: inspectors.length },
           ]} />
 
           {tab === 'active' && (
@@ -112,7 +112,7 @@ export function DeptHeadDashboard() {
               <div className="table-wrap">
                 <table className="table">
                   <thead>
-                    <tr><th>Qeydiyyat №</th><th>Sahib</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th>Təyin edilmiş Müfəttiş</th><th>Qəbul Tarixi</th></tr>
+                    <tr><th>Qeydiyyat №</th><th>Sahib</th><th>Cari Vəziyyət</th><th>Risk Göstəricisi</th><th>Təyin edilmiş İnspektor</th><th>Qəbul Tarixi</th></tr>
                   </thead>
                   <tbody>
                     {activeDecls.map((d) => {

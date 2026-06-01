@@ -38,7 +38,7 @@ export function DepartmentsPage() {
             <tr>
               <th>Şöbə</th>
               <th>Rəis</th>
-              <th className="cell-num">Müfəttişlər</th>
+              <th className="cell-num">İnspektorlar</th>
               <th className="cell-num">Ümumi</th>
               <th className="cell-num">Aktiv</th>
               <th className="cell-num">Tamamlanmış</th>

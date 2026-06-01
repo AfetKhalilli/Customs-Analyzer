@@ -34,7 +34,7 @@ export function seedUsers(): AppUser[] {
       phone: `+994 50 100 ${(10 + i).toString().padStart(2, '0')} 10`,
       password: STAFF_PW,
       department: dept,
-      staffTitle: `${dept} Şöbəsi Müfəttişi`,
+      staffTitle: `${dept} Şöbəsi İnspektoru`,
       createdAt: new Date(2024, 0, 1).toISOString(),
       status: 'active',
       dateOfBirth: new Date(1985 + i, 5, 15).toISOString().slice(0, 10),
@@ -315,7 +315,7 @@ export function seedLogs(decls: Declaration[], users: AppUser[]): LogEntry[] {
         logs.push({
           id: uid('log'), declarationId: d.id,
           actorId: 'system', actorRole: 'user', actorDisplayName: 'Sistem',
-          action: 'ASSIGNED', description: `Müfəttiş təyin olundu: ${dispName(insp)}`,
+          action: 'ASSIGNED', description: `İnspektor təyin olundu: ${dispName(insp)}`,
           at: new Date(new Date(d.uploadedAt).getTime() + 5000).toISOString(),
         });
       }

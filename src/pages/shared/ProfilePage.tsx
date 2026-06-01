@@ -70,7 +70,7 @@ export function ProfilePage() {
         {u.role === 'inspector' && (
           <ProfileSection title="İş məlumatları">
             <Field label="Şöbə" value={u.department ?? '—'} />
-            <Field label="Vəzifə" value={u.staffTitle ?? 'Müfəttiş'} />
+            <Field label="Vəzifə" value={u.staffTitle ?? 'İnspektor'} />
           </ProfileSection>
         )}
 

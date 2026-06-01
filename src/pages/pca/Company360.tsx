@@ -106,7 +106,7 @@ export function Company360() {
           { value: 'declarations', label: 'Sənədlər', count: companyDecls.length },
           { value: 'documents',    label: 'Sənədlər' },
           { value: 'history',      label: 'Tarixçə' },
-          { value: 'inspectors',   label: 'Müfəttişlər', count: inspectorsInvolved.length },
+          { value: 'inspectors',   label: 'İnspektorlar', count: inspectorsInvolved.length },
           { value: 'anomalies',    label: 'Anomaliyalar', count: companyAnomalies.length },
           { value: 'findings',     label: 'Tapıntılar', count: companyFindings.length },
           { value: 'compare',      label: 'Müqayisə' },
@@ -194,7 +194,7 @@ export function Company360() {
       {tab === 'inspectors' && (
         <div className="card no-pad">
           <table className="table">
-            <thead><tr><th>Müfəttiş</th><th>Şöbə</th><th className="cell-num">İşlər</th><th className="cell-num">Ort. Risk</th></tr></thead>
+            <thead><tr><th>İnspektor</th><th>Şöbə</th><th className="cell-num">İşlər</th><th className="cell-num">Ort. Risk</th></tr></thead>
             <tbody>
               {inspectorsInvolved.map((insId) => {
                 const ins = users.find((u) => u.id === insId);
@@ -213,7 +213,7 @@ export function Company360() {
               })}
             </tbody>
           </table>
-          {inspectorsInvolved.length === 0 && <EmptyState title="Müfəttiş təyini yoxdur" />}
+          {inspectorsInvolved.length === 0 && <EmptyState title="İnspektor təyini yoxdur" />}
         </div>
       )}
 

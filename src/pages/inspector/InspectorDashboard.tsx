@@ -42,7 +42,7 @@ export function InspectorDashboard() {
 
   return (
     <div>
-      <h1>Müfəttiş İdarəetmə Paneli</h1>
+      <h1>İnspektor İdarəetmə Paneli</h1>
       <p className="text-muted">{user.firstName} {user.lastName} · {user.department} şöbəsi</p>
 
       <div className="kpi-grid">

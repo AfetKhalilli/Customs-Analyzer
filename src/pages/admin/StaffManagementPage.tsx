@@ -11,7 +11,7 @@ import { toast } from '../../store/toastStore';
 import type { IndividualUser, AppUser, Role } from '../../types';
 
 const ROLE_LABELS: Record<string, string> = {
-  inspector: 'Müfəttiş', departmentHead: 'Şöbə Rəisi', pca: 'PCA Auditor', boss: 'Baş Direktor',
+  inspector: 'İnspektor', departmentHead: 'Şöbə Rəisi', pca: 'PCA Auditor', boss: 'Baş Direktor',
 };
 
 const finRegex = /^[A-Z0-9]{7}$/;
@@ -29,7 +29,7 @@ const staffSchema = z.object({
   staffTitle: z.string().optional(),
   password: z.string().min(8, 'Ən azı 8 simvol').regex(/[A-Za-z]/, 'Hərf').regex(/\d/, 'Rəqəm'),
 }).refine((d) => d.role === 'pca' || !!d.department, {
-  message: 'Müfəttiş və Şöbə Rəisi üçün şöbə seçilməlidir', path: ['department'],
+  message: 'İnspektor və Şöbə Rəisi üçün şöbə seçilməlidir', path: ['department'],
 });
 
 export function StaffManagementPage() {
@@ -142,7 +142,7 @@ export function StaffManagementPage() {
           <h1>{isBoss ? 'İdarəetmə Paneli' : 'Əməkdaş İdarəetməsi'}</h1>
           <p className="text-muted">
             {isBoss
-              ? 'Müfəttişləri, Şöbə Rəislərini, PCA auditorlarını və şöbələri idarə edin'
+              ? 'İnspektorları, Şöbə Rəislərini, PCA auditorlarını və şöbələri idarə edin'
               : `${myDept} şöbəsinin müfəttişlərini idarə edin`}
           </p>
         </div>
@@ -156,7 +156,7 @@ export function StaffManagementPage() {
         onChange={setTab}
         items={isBoss
           ? [{ value: 'staff', label: 'Əməkdaşlar', count: staff.length }, { value: 'departments', label: 'Şöbələr', count: departments.length }]
-          : [{ value: 'staff', label: 'Müfəttişlər', count: staff.length }]
+          : [{ value: 'staff', label: 'İnspektorlar', count: staff.length }]
         }
       />
 
@@ -169,7 +169,7 @@ export function StaffManagementPage() {
                 <>
                   <select className="select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                     <option value="">Bütün rollar</option>
-                    <option value="inspector">Müfəttiş</option>
+                    <option value="inspector">İnspektor</option>
                     <option value="departmentHead">Şöbə Rəisi</option>
                     <option value="pca">PCA Auditor</option>
                   </select>
@@ -308,9 +308,9 @@ function StaffFormModal({ initial, forceRole, forceDepartment, departments, onCl
           <div className="form-row cols-2">
             <SelectField name="role" label="Rol" required
               options={forceRole
-                ? [{ value: 'inspector', label: 'Müfəttiş' }]
+                ? [{ value: 'inspector', label: 'İnspektor' }]
                 : [
-                  { value: 'inspector', label: 'Müfəttiş' },
+                  { value: 'inspector', label: 'İnspektor' },
                   { value: 'departmentHead', label: 'Şöbə Rəisi' },
                   { value: 'pca', label: 'PCA Auditor' },
                 ]} />
@@ -370,7 +370,7 @@ function DepartmentsAdmin({ departments, users, onAdd, onRename, onDelete }: {
           <table className="table">
             <thead>
               <tr>
-                <th>Şöbə</th><th>Rəis</th><th className="cell-num">Müfəttişlər</th>
+                <th>Şöbə</th><th>Rəis</th><th className="cell-num">İnspektorlar</th>
                 <th className="cell-actions">Əməllər</th>
               </tr>
             </thead>

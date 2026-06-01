@@ -98,7 +98,7 @@ export const DOCUMENT_TYPES: { code: DocumentTypeCode; label: string; group: Doc
   { code: 'COMMERCIAL_INVOICE',  label: 'Kommersiya invoysu',  group: 'FINANCIAL',    availableTo: ['company'] },
   { code: 'PAYMENT_RECEIPT',     label: 'Ödəniş qəbzi',        group: 'FINANCIAL',    availableTo: ['individual', 'company'] },
   { code: 'CONTRACT',            label: 'Müqavilə',            group: 'LEGAL',        availableTo: ['company'] },
-  { code: 'CUSTOMS_DECLARATION', label: 'Gömrük Sənədi',       group: 'CUSTOMS',      availableTo: ['individual', 'company'] },
+  { code: 'CUSTOMS_DECLARATION', label: 'Gömrük Bəyannaməsi',  group: 'CUSTOMS',      availableTo: ['individual', 'company'] },
   { code: 'SHIPPING_DOCUMENT',   label: 'Daşıma sənədi',       group: 'TRANSPORT',    availableTo: ['individual', 'company'] },
   { code: 'PACKING_LIST',        label: 'Qablaşdırma siyahısı',group: 'TRANSPORT',    availableTo: ['individual', 'company'] },
   { code: 'CERTIFICATE',         label: 'Sertifikat',          group: 'CERTIFICATES', availableTo: ['individual', 'company'] },

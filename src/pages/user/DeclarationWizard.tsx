@@ -72,11 +72,11 @@ export function DeclarationWizard() {
           state={state}
           ownerEntityType={user.entityType}
           submitErrors={submitErrors}
-          clearSubmitErrors={() => setSubmitErrors([])}
-          onBack={() => setStep(3)}
-          onSubmit={(s4) => {
+          clearSubmitErrors={() => setSubmitErrors((e) => (e.length ? [] : e))}
+          onBack={(draft) => { setState({ ...state, step4: draft }); setStep(3); }}
+          onSubmit={(lines, shared) => {
             const ownerDisplayName = user.entityType === 'individual' ? `${user.firstName} ${user.lastName}` : user.companyName;
-            const payload = {
+            const common = {
               ownerId: user.id, ownerEntityType: user.entityType, ownerDisplayName,
               kind: state.step1.kind, department: state.step1.department,
               declarationDate: state.step1.declarationDate,
@@ -84,22 +84,47 @@ export function DeclarationWizard() {
               referenceNumber: state.step1.referenceNumber || undefined,
               documents: state.step2,
               shipment: { ...state.step3 },
-              totals: { ...s4 },
             };
+            const multi = lines.length > 1;
+            // Build one independent declaration payload per commodity line.
+            const payloads = lines.map((l) => ({
+              ...common,
+              totals: {
+                currency: l.currency, totalDeclaredValue: l.totalDeclaredValue,
+                totalQuantity: l.totalQuantity, unitOfMeasure: l.unitOfMeasure,
+                goodsCategory: l.goodsCategory, goodsSubcategory: l.goodsSubcategory,
+                hsCode: l.hsCode,
+                originCertificateNo: shared.originCertificateNo || undefined,
+                additionalNotes: shared.additionalNotes || undefined,
+              },
+            }));
 
-            // ── FINAL SUBMISSION GATE (UI layer) ────────────────────────────
-            const v = validateDeclaration(payload);
-            if (!v.ok) {
-              setSubmitErrors(v.errors);
-              toast.error(`Sənəd təqdim edilə bilməz: ${v.errors.length} səhv`);
+            // ── FINAL SUBMISSION GATE (UI layer) — validate EVERY line first.
+            const errors: ValidationIssue[] = [];
+            payloads.forEach((p, i) => {
+              const v = validateDeclaration(p);
+              if (!v.ok) {
+                const tag = multi ? `Sətir ${i + 1}: ` : '';
+                errors.push(...v.errors.map((e) => ({ ...e, message: tag + e.message })));
+              }
+            });
+            if (errors.length > 0) {
+              setSubmitErrors(errors);
+              toast.error(`Təqdim edilə bilməz: ${errors.length} səhv`);
               return;
             }
 
+            // All lines valid → create each as a separate declaration entity.
             try {
-              const id = addDeclaration(payload);
+              const ids = payloads.map((p) => addDeclaration(p));
               setSubmitErrors([]);
-              toast.success('Sənəd təqdim edildi');
-              navigate(`/declaration/${id}`);
+              if (ids.length === 1) {
+                toast.success('Sənəd təqdim edildi');
+                navigate(`/declaration/${ids[0]}`);
+              } else {
+                toast.success(`${ids.length} ayrı bəyannamə yaradıldı`);
+                navigate('/declarations');
+              }
             } catch (e) {
               if (e instanceof ValidationError) {
                 setSubmitErrors(e.issues);
@@ -205,33 +230,39 @@ function Step3({ initial, onBack, onNext }: { initial: any | null; onBack: () =>
   );
 }
 
-function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitErrors, onBack, onSubmit }: {
-  initial: any | null; state: WizardState; ownerEntityType: 'individual' | 'company';
-  submitErrors: ValidationIssue[];
-  clearSubmitErrors: () => void;
-  onBack: () => void; onSubmit: (d: any) => void;
+// A single commodity line. Each line becomes its OWN declaration (WCO/EU-style
+// "one commodity stream = one declaration") so classification, risk scoring and
+// the inspection workflow run independently per line.
+type GoodsLineValue = {
+  currency: string; totalDeclaredValue: number; totalQuantity: number; unitOfMeasure: string;
+  goodsCategory: string; goodsSubcategory: string; hsCode: string;
+};
+
+function emptyGoodsLine(): GoodsLineValue {
+  return {
+    currency: 'USD', totalDeclaredValue: 0, totalQuantity: 0, unitOfMeasure: 'ədəd',
+    goodsCategory: '', goodsSubcategory: '', hsCode: '',
+  };
+}
+
+// One self-contained line form (own RHF instance). Reports its live values up
+// so the parent can split the submission into separate declarations.
+function GoodsLineForm({ id, index, total, initial, state, ownerEntityType, onChange, onRemove }: {
+  id: string; index: number; total: number;
+  initial: GoodsLineValue; state: WizardState; ownerEntityType: 'individual' | 'company';
+  onChange: (id: string, v: GoodsLineValue) => void;
+  onRemove?: () => void;
 }) {
   const methods = useForm({
     resolver: zodResolver(declStep4Schema),
     mode: 'onChange',
     reValidateMode: 'onChange',
-    defaultValues: initial ?? {
-      currency: 'USD', totalDeclaredValue: 0, totalQuantity: 0,
-      unitOfMeasure: 'ədəd',
-      goodsCategory: '', goodsSubcategory: '',
-      hsCode: '', originCertificateNo: '', additionalNotes: '',
-    },
+    defaultValues: { ...initial, originCertificateNo: '', additionalNotes: '' },
   });
   const values = methods.watch();
 
-  // ── Cascading: when goodsCategory changes, clear the now-invalid subcategory.
-  // Backed by the central GOODS_CATEGORY_SUBCATEGORIES mapping; subcategory list
-  // is fully driven by the selected parent category.
   const selectedCategory = methods.watch('goodsCategory');
-  const subcategoryOptions = React.useMemo(
-    () => subcategoriesFor(selectedCategory),
-    [selectedCategory],
-  );
+  const subcategoryOptions = React.useMemo(() => subcategoriesFor(selectedCategory), [selectedCategory]);
   React.useEffect(() => {
     const current = methods.getValues('goodsSubcategory');
     if (current && !subcategoryOptions.includes(current)) {
@@ -240,33 +271,44 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory]);
 
-  // Clear stale "submit errors" the moment the user starts editing again —
-  // prevents the inline error list from looking permanent after a fix.
+  // Report current values up on every edit (parent keeps the latest per line).
   React.useEffect(() => {
-    if (submitErrors.length > 0) clearSubmitErrors();
-    // intentionally depending only on serialized values so we react to edits
+    onChange(id, {
+      currency: values.currency, totalDeclaredValue: values.totalDeclaredValue,
+      totalQuantity: values.totalQuantity, unitOfMeasure: values.unitOfMeasure,
+      goodsCategory: values.goodsCategory, goodsSubcategory: values.goodsSubcategory,
+      hsCode: values.hsCode,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(values)]);
 
-  // live AI preview
-  const aiPreview = React.useMemo(() => {
-    return runAI({
-      ownerEntityType,
-      kind: state.step1.kind,
-      department: state.step1.department,
-      documents: state.step2,
-      shipment: state.step3 ? { ...state.step3 } : undefined,
-      totals: { ...values },
-    });
-  }, [values, state, ownerEntityType]);
+  // Independent per-line AI preview — each line is scored on its own.
+  const aiPreview = React.useMemo(() => runAI({
+    ownerEntityType,
+    kind: state.step1.kind,
+    department: state.step1.department,
+    documents: state.step2,
+    shipment: state.step3 ? { ...state.step3 } : undefined,
+    totals: { ...values },
+  }), [values, state, ownerEntityType]);
 
   return (
     <FormProvider {...methods}>
-      <form className="card" onSubmit={methods.handleSubmit(onSubmit)}>
+      <div className="card" style={{ marginBottom: 14 }}>
         <div className="card-body">
+          <div className="flex items-center justify-between mb-3">
+            <h3 style={{ margin: 0 }}>
+              {total > 1 ? `Mal sətiri ${index + 1} — ayrıca bəyannamə` : 'Mal məlumatları'}
+            </h3>
+            {onRemove && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onRemove}>
+                <Trash2 size={14} /> Sil
+              </button>
+            )}
+          </div>
           <div className="form-row cols-3">
             <SelectField name="currency" label="Valyuta" required options={CURRENCIES} />
-            <NumberField name="totalDeclaredValue" label="Ümumi Bəyan Dəyəri" required step="0.01" />
+            <NumberField name="totalDeclaredValue" label="Bəyan Dəyəri" required step="0.01" />
             <SelectField name="unitOfMeasure" label="Ölçü vahidi" required options={UNITS_OF_MEASURE} />
           </div>
           <div className="form-row cols-2">
@@ -285,34 +327,116 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
             />
           </div>
           <div className="form-row cols-2">
-            <NumberField name="totalQuantity" label="Ümumi Miqdar" required step="0.01" />
+            <NumberField name="totalQuantity" label="Miqdar" required step="0.01" />
             <HsCodeField name="hsCode" label="HS Kodu" required />
           </div>
-          <TextField name="originCertificateNo" label="Mənşə sertifikatı № (ixtiyari)" />
-          <TextareaField name="additionalNotes" label="Əlavə qeydlər (ixtiyari)" placeholder="Müfəttişə qeyd və ya kontekst..." />
 
           <div className="wizard-ai-preview">
-            <h3>Süni İntellekt Risk Ön Baxışı</h3>
-            <div className="flex items-center gap-3 mb-3">
+            <h4 style={{ marginTop: 0 }}>Bu sətir üçün risk ön baxışı</h4>
+            <div className="flex items-center gap-3 mb-2">
               <RiskBadge level={aiPreview.riskLevel} score={aiPreview.score} />
               <ChannelPill channel={aiPreview.selectivityChannel} />
               <span className="text-muted text-sm">{aiPreview.flags.length} əlamət</span>
             </div>
-            {aiPreview.flags.length === 0 && (
-              <div className="text-muted text-sm">Hələ heç bir risk əlaməti yoxdur. Bütün addımları tamamladıqdan sonra yenilənəcək.</div>
+            {aiPreview.flags.length === 0 ? (
+              <div className="text-muted text-sm">Hələ risk əlaməti yoxdur.</div>
+            ) : (
+              <div className="ai-flags">
+                {aiPreview.flags.map((f, i) => (
+                  <div key={i} className={`ai-flag ${f.severity}`}>
+                    <strong>{f.message}</strong> <span className="text-muted">(+{f.points})</span>
+                  </div>
+                ))}
+              </div>
             )}
-            <div className="ai-flags">
-              {aiPreview.flags.map((f, i) => (
-                <div key={i} className={`ai-flag ${f.severity}`}>
-                  <strong>{f.message}</strong> <span className="text-muted">(+{f.points})</span>
-                </div>
-              ))}
-            </div>
+          </div>
+        </div>
+      </div>
+    </FormProvider>
+  );
+}
+
+function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitErrors, onBack, onSubmit }: {
+  initial: any | null; state: WizardState; ownerEntityType: 'individual' | 'company';
+  submitErrors: ValidationIssue[];
+  clearSubmitErrors: () => void;
+  onBack: (draft: any) => void;
+  onSubmit: (lines: any[], shared: { originCertificateNo?: string; additionalNotes?: string }) => void;
+}) {
+  // Each entry = one commodity stream → one declaration. Stable ids let lines
+  // be added/removed without remounting their sibling forms.
+  const [lines, setLines] = React.useState<{ id: string; initial: GoodsLineValue }[]>(() => {
+    const seeded: GoodsLineValue[] = initial?.lines?.length ? initial.lines : [emptyGoodsLine()];
+    return seeded.map((v) => ({ id: uid('line'), initial: v }));
+  });
+  const [originCertificateNo, setOriginCertificateNo] = React.useState<string>(initial?.originCertificateNo ?? '');
+  const [additionalNotes, setAdditionalNotes] = React.useState<string>(initial?.additionalNotes ?? '');
+
+  // Latest values reported by each child line form, keyed by line id.
+  const valuesById = React.useRef<Record<string, GoodsLineValue>>({});
+
+  const handleLineChange = (id: string, v: GoodsLineValue) => {
+    valuesById.current[id] = v;
+    clearSubmitErrors();
+  };
+
+  const collect = (): GoodsLineValue[] =>
+    lines.map((l) => valuesById.current[l.id] ?? l.initial);
+
+  const addLine = () => setLines((prev) => [...prev, { id: uid('line'), initial: emptyGoodsLine() }]);
+  const removeLine = (id: string) => {
+    delete valuesById.current[id];
+    setLines((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const handleSubmit = () => onSubmit(collect(), { originCertificateNo, additionalNotes });
+  const handleBack = () => onBack({ lines: collect(), originCertificateNo, additionalNotes });
+
+  return (
+    <div>
+      {lines.length > 1 && (
+        <div className="banner info" style={{ marginBottom: 14 }}>
+          <FileText size={18} />
+          <div className="b-body">
+            <div className="b-title">{lines.length} ayrı bəyannamə yaradılacaq</div>
+            <div>Hər mal sətiri müstəqil bəyannamə kimi qeydə alınır — ayrıca təsnifat, risk qiymətləndirməsi və yoxlama prosesi ilə (WCO/EU prinsipi).</div>
+          </div>
+        </div>
+      )}
+
+      {lines.map((l, i) => (
+        <GoodsLineForm
+          key={l.id}
+          id={l.id}
+          index={i}
+          total={lines.length}
+          initial={l.initial}
+          state={state}
+          ownerEntityType={ownerEntityType}
+          onChange={handleLineChange}
+          onRemove={lines.length > 1 ? () => removeLine(l.id) : undefined}
+        />
+      ))}
+
+      <button type="button" className="btn btn-secondary" onClick={addLine} style={{ marginBottom: 14 }}>
+        <Plus size={14} /> Başqa mal sətiri əlavə et (ayrı bəyannamə)
+      </button>
+
+      <div className="card">
+        <div className="card-body">
+          <h3 style={{ marginTop: 0 }}>Ümumi məlumatlar (bütün sətirlərə aiddir)</h3>
+          <div className="form-group">
+            <label className="label">Mənşə sertifikatı № (ixtiyari)</label>
+            <input className="input" value={originCertificateNo} onChange={(e) => { setOriginCertificateNo(e.target.value); clearSubmitErrors(); }} />
+          </div>
+          <div className="form-group">
+            <label className="label">Əlavə qeydlər (ixtiyari)</label>
+            <textarea className="textarea" rows={3} placeholder="İnspektora qeyd və ya kontekst..." value={additionalNotes} onChange={(e) => { setAdditionalNotes(e.target.value); clearSubmitErrors(); }} />
           </div>
 
           {submitErrors.length > 0 && (
             <div className="banner error" style={{ marginTop: 16 }}>
-              <strong>Sənəd təqdim edilə bilməz — aşağıdakı səhvləri düzəldin:</strong>
+              <strong>Təqdim edilə bilməz — aşağıdakı səhvləri düzəldin:</strong>
               <ul style={{ marginTop: 8, paddingLeft: 18 }}>
                 {submitErrors.map((e, i) => (
                   <li key={i}><code>{e.code}</code> — {e.message}{e.field ? ` (${e.field})` : ''}</li>
@@ -322,13 +446,13 @@ function Step4({ initial, state, ownerEntityType, submitErrors, clearSubmitError
           )}
         </div>
         <div className="card-footer flex justify-between">
-          <button type="button" className="btn btn-secondary" onClick={onBack}>← Geri</button>
-          <button type="submit" className="btn btn-success" disabled={submitErrors.length > 0}>
-            Sənədi Təqdim Et
+          <button type="button" className="btn btn-secondary" onClick={handleBack}>← Geri</button>
+          <button type="button" className="btn btn-success" onClick={handleSubmit}>
+            {lines.length > 1 ? `${lines.length} Bəyannaməni Təqdim Et` : 'Sənədi Təqdim Et'}
           </button>
         </div>
-      </form>
-    </FormProvider>
+      </div>
+    </div>
   );
 }
 
@@ -519,7 +643,7 @@ function DocumentForm({ typeCode, onCancel, onSave }: {
     counterpartyName: 'Qarşı tərəfin adı',
     counterpartyAddress: 'Qarşı tərəfin ünvanı',
     paymentTerms: 'Ödəniş şərtləri',
-    declarationNumber: 'Gömrük Sənədi №',
+    declarationNumber: 'Gömrük Bəyannaməsi №',
     procedureCode: 'Prosedur kodu',
     hsCode: 'HS Kodu',
     goodsDescription: 'Malların təsviri',

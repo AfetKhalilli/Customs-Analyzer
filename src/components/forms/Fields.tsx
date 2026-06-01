@@ -5,7 +5,7 @@ import { Upload, File, X, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { validateFile } from '../../lib/validation';
 import { FILE_ACCEPT_ATTR, ALLOWED_FILE_EXTENSIONS, MAX_FILE_SIZE_MB } from '../../lib/constants';
-import { searchHs, lookupHs, canonicalizeHs, HsCodeRecord } from '../../lib/hsCodes';
+import { searchHs, lookupHs, HsCodeRecord, HS_CODES, HS_CATEGORIES } from '../../lib/hsCodes';
 
 type Option = string | { value: string; label: string };
 
@@ -266,40 +266,45 @@ export function FileUploaderField({ name, label, hint, accept }: { name: string;
 }
 
 /**
- * HS code typeahead — searchable by code prefix OR product keywords.
- * Stores the canonicalized HS code (with dots) in form state.
+ * HS code selection — a TWO-STEP, registry-validated picker.
+ *   Step 1: narrow by commodity category (speeds selection, optional).
+ *   Step 2: search & pick a concrete code from the official registry, then
+ *           EXPLICITLY CONFIRM the classification.
+ * The form value is only ever set to a code that exists in HS_CODES and was
+ * confirmed by the user — free-typed or partial codes can never be committed,
+ * which structurally prevents an incorrect final HS assignment.
  */
+const hsTier = (t: string) => (t === 'high' ? 'yüksək' : t === 'medium' ? 'orta' : 'aşağı');
+
 export function HsCodeField({
   name,
   label = 'HS Kodu',
   required,
-  hint = 'Məhsul adı və ya HS prefiksi yazın (məs: "telefon" və ya "8517")',
-  placeholder = 'HS kodu və ya məhsul axtar...',
+  hint = 'Addım 1: kateqoriya seçin · Addım 2: kodu seçib təsdiqləyin',
 }: BaseProps & {}) {
   const { register, setValue, watch, clearErrors, formState: { errors } } = useFormContext();
   const err = getError(errors, name);
   const value: string = watch(name) ?? '';
-  const [query, setQuery] = React.useState<string>(value);
+  const matched: HsCodeRecord | undefined = React.useMemo(() => lookupHs(value), [value]);
+
+  const [category, setCategory] = React.useState<string>('');
+  const [query, setQuery] = React.useState<string>('');
   const [open, setOpen] = React.useState(false);
+  const [pending, setPending] = React.useState<HsCodeRecord | null>(null);
+
   const containerRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [anchor, setAnchor] = React.useState<{ top: number; left: number; width: number; openUp: boolean }>(
     { top: 0, left: 0, width: 0, openUp: false }
   );
 
-  React.useEffect(() => {
-    // keep input synced when form is reset
-    if (value !== query && document.activeElement !== inputRef.current) {
-      setQuery(value);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  // Register the field so RHF tracks it while we own the UX.
+  React.useEffect(() => { register(name); }, [register, name]);
 
   React.useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node;
       if (containerRef.current?.contains(target)) return;
-      // The portal-rendered listbox lives outside the container; check via data-attr.
       if ((target as HTMLElement)?.closest?.('[data-hs-listbox]')) return;
       setOpen(false);
     };
@@ -307,27 +312,18 @@ export function HsCodeField({
     return () => window.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  // Position the portal-rendered dropdown relative to the input. Recomputes
-  // on open, on scroll (any ancestor) and on resize so the listbox tracks the
-  // input even inside a scrollable modal body. Flips upward when there isn't
-  // enough room below.
+  // Position the portal-rendered dropdown relative to the input so it never
+  // gets clipped inside a scrollable modal body; flips up when room is tight.
   React.useEffect(() => {
     if (!open) return;
     const update = () => {
       const el = inputRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const listMaxH = 280;
       const spaceBelow = window.innerHeight - r.bottom - 8;
       const spaceAbove = r.top - 8;
-      const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
-      setAnchor({
-        top: openUp ? r.top - 4 : r.bottom + 4,
-        left: r.left,
-        width: r.width,
-        openUp,
-      });
-      void listMaxH;
+      const openUp = spaceBelow < 240 && spaceAbove > spaceBelow;
+      setAnchor({ top: openUp ? r.top - 4 : r.bottom + 4, left: r.left, width: r.width, openUp });
     };
     update();
     window.addEventListener('scroll', update, true);
@@ -338,89 +334,118 @@ export function HsCodeField({
     };
   }, [open]);
 
-  const results = React.useMemo(() => searchHs(query, 10), [query]);
-  const matched: HsCodeRecord | undefined = React.useMemo(() => lookupHs(value), [value]);
+  const results = React.useMemo(() => {
+    let list = query.trim() ? searchHs(query, 60) : HS_CODES;
+    if (category) list = list.filter((h) => h.category === category);
+    return list.slice(0, 12);
+  }, [query, category]);
 
-  // Register the field so RHF tracks it but render our own input — keeps zod
-  // validation while letting us own the UX.
-  React.useEffect(() => { register(name); }, [register, name]);
-
-  const commit = (code: string) => {
-    const canonical = canonicalizeHs(code) ?? code;
-    setValue(name, canonical, { shouldValidate: true, shouldDirty: true });
-    setQuery(canonical);
+  const choose = (rec: HsCodeRecord) => { setPending(rec); setOpen(false); setQuery(''); };
+  const confirm = () => {
+    if (!pending) return;
+    setValue(name, pending.code, { shouldValidate: true, shouldDirty: true });
     clearErrors(name);
-    setOpen(false);
+    setPending(null);
+  };
+  const reset = () => {
+    setValue(name, '', { shouldValidate: true, shouldDirty: true });
+    setPending(null);
+    setQuery('');
   };
 
   return (
     <div className="form-group" ref={containerRef}>
       {label && <label className="label">{label}{required && <span className="req">*</span>}</label>}
-      <input
-        ref={inputRef}
-        className={cn('input', err && 'error')}
-        placeholder={placeholder}
-        autoComplete="off"
-        value={query}
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          const next = e.target.value;
-          setQuery(next);
-          setOpen(true);
-          // also push raw value into form state so zod sees it; canonicalize on blur/select
-          setValue(name, next, { shouldValidate: true, shouldDirty: true });
-        }}
-        onBlur={() => {
-          const canonical = canonicalizeHs(query);
-          if (canonical && canonical !== query) {
-            setValue(name, canonical, { shouldValidate: true, shouldDirty: true });
-            setQuery(canonical);
-          }
-        }}
-      />
-      {/* Portal-rendered listbox — escapes parent overflow:auto so it never
-          gets clipped inside the document-attachment modal. */}
-      {open && results.length > 0 && createPortal(
-        <div
-          role="listbox"
-          data-hs-listbox
-          // Inline positioning is intrinsic to a portal-rendered floating
-          // element; visual styling (background/border/shadow) comes from CSS.
-          className="hs-listbox"
-          style={{
-            position: 'fixed',
-            top: anchor.openUp ? undefined : anchor.top,
-            bottom: anchor.openUp ? window.innerHeight - anchor.top : undefined,
-            left: anchor.left,
-            width: anchor.width,
-          }}
-        >
-          {results.map((r) => (
-            <button
-              key={r.code}
-              type="button"
-              className="hs-listbox-item"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => commit(r.code)}
-            >
-              <span className="mono hs-listbox-code">{r.code}</span>
-              <span className="hs-listbox-meta">
-                <span className="hs-listbox-label">{r.label}</span>
-                <span className="hs-listbox-sub">
-                  {r.category} · {r.tariffRate}% rüsum · {r.riskTier === 'high' ? 'yüksək' : r.riskTier === 'medium' ? 'orta' : 'aşağı'} risk
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>,
-        document.body
-      )}
-      {matched && !err && (
-        <div className="help-text hs-match-ok">
-          ✓ {matched.label} · {matched.category} · rüsum {matched.tariffRate}%
+
+      {value && matched && !pending ? (
+        /* Confirmed, registry-validated classification */
+        <div className="hs-confirmed">
+          <div className="hs-confirmed-main">
+            <span className="hs-confirmed-check">✓</span>
+            <div>
+              <div><span className="mono">{matched.code}</span> — {matched.label}</div>
+              <div className="hs-confirmed-sub">{matched.category} · rüsum {matched.tariffRate}% · {hsTier(matched.riskTier)} risk</div>
+            </div>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reset}>Dəyiş</button>
         </div>
+      ) : pending ? (
+        /* Step 2b — confirm the picked classification before it is assigned */
+        <div className="hs-pending">
+          <div className="hs-pending-title">Bu təsnifatı təsdiqləyin:</div>
+          <div className="hs-pending-body">
+            <div><span className="mono">{pending.code}</span> — <b>{pending.label}</b></div>
+            <div className="hs-confirmed-sub">
+              {pending.category} · rüsum {pending.tariffRate}% · ƏDV {pending.vatRate}% · {hsTier(pending.riskTier)} risk
+              {pending.controls.length > 0 && <> · Nəzarət: {pending.controls.join(', ')}</>}
+            </div>
+          </div>
+          <div className="hs-pending-actions">
+            <button type="button" className="btn btn-success btn-sm" onClick={confirm}>Təsdiqlə</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPending(null)}>Ləğv et</button>
+          </div>
+        </div>
+      ) : (
+        /* Step 1 (category) + Step 2 (search & pick) */
+        <>
+          <div className="hs-step-row">
+            <select
+              className="select"
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setOpen(true); }}
+              aria-label="Addım 1 — kateqoriya"
+            >
+              <option value="">Addım 1 — Bütün kateqoriyalar</option>
+              {HS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input
+              ref={inputRef}
+              className={cn('input', err && 'error')}
+              placeholder="Addım 2 — kod və ya məhsul axtar..."
+              autoComplete="off"
+              value={query}
+              onFocus={() => setOpen(true)}
+              onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            />
+          </div>
+          {open && results.length > 0 && createPortal(
+            <div
+              role="listbox"
+              data-hs-listbox
+              className="hs-listbox"
+              style={{
+                position: 'fixed',
+                top: anchor.openUp ? undefined : anchor.top,
+                bottom: anchor.openUp ? window.innerHeight - anchor.top : undefined,
+                left: anchor.left,
+                width: anchor.width,
+              }}
+            >
+              {results.map((r) => (
+                <button
+                  key={r.code}
+                  type="button"
+                  className="hs-listbox-item"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => choose(r)}
+                >
+                  <span className="mono hs-listbox-code">{r.code}</span>
+                  <span className="hs-listbox-meta">
+                    <span className="hs-listbox-label">{r.label}</span>
+                    <span className="hs-listbox-sub">{r.category} · {r.tariffRate}% rüsum · {hsTier(r.riskTier)} risk</span>
+                  </span>
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
+          {open && results.length === 0 && query.trim() && (
+            <div className="help-text">Uyğun kod tapılmadı — başqa açar söz və ya kateqoriya yoxlayın.</div>
+          )}
+        </>
       )}
-      {hint && !matched && !err && <div className="help-text">{hint}</div>}
+
+      {hint && !err && !value && !pending && <div className="help-text">{hint}</div>}
       {err && <div className="error-text">{err}</div>}
     </div>
   );

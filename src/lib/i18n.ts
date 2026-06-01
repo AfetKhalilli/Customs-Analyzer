@@ -16,7 +16,7 @@ import type {
 // ── Roles ─────────────────────────────────────────────────────────────────
 export const ROLE_LABEL: Record<Role, string> = {
   user:           'İstifadəçi',
-  inspector:      'Müfəttiş',
+  inspector:      'İnspektor',
   departmentHead: 'Şöbə Rəisi',
   boss:           'Baş Direktor',
   pca:            'PCA Auditoru',
@@ -155,14 +155,14 @@ export const ESCALATION_LEVEL_LABEL: Record<'Departament' | 'BaşDirektor' | 'Na
 export const LOG_ACTION_LABEL: Record<LogAction, string> = {
   UPLOAD:                'Sənəd təqdim edildi',
   AI_RUN:                'Süni intellekt risk qiymətləndirməsi aparıldı',
-  ASSIGNED:              'Müfəttiş təyinatı aparıldı',
+  ASSIGNED:              'İnspektor təyinatı aparıldı',
   STATUS_CHANGE:         'Status dəyişikliyi qeydə alındı',
   COMMENT:               'Şərh əlavə edildi',
   CORRECTION_REQUESTED:  'Düzəliş tələbi göndərildi',
   RESUBMITTED:           'Yenidən təqdim edildi',
   DECISION:              'Audit qərarı verildi',
   AUTO_COMPLETED:        'Sistem tərəfindən avtomatik bağlandı',
-  REASSIGNED:            'Müfəttiş yenidən təyin olundu',
+  REASSIGNED:            'İnspektor yenidən təyin olundu',
   VIEWED_BY_PCA:         'PCA Auditoru tərəfindən baxış aparıldı',
   FINDING_OPENED:        'Audit tapıntısı açıldı',
   WATCHLIST_TOGGLE:      'İzləmə siyahısı yeniləndi',
@@ -238,7 +238,7 @@ export const UI = {
   approve:            'Təsdiq Et',
   reject:             'Rədd Et',
   requestCorrection:  'Düzəliş Tələb Et',
-  reassignInspector:  'Müfəttişi Dəyiş',
+  reassignInspector:  'İnspektoru Dəyiş',
   startReview:        'Audit Yoxlamasına Başla',
 
   // Empty states

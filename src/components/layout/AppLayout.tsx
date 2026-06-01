@@ -33,7 +33,7 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
   departmentHead: [
     { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
-    { label: 'Müfəttişlər', to: '/inspectors', icon: <Users size={18} /> },
+    { label: 'İnspektorlar', to: '/inspectors', icon: <Users size={18} /> },
     { label: 'Əməkdaş İdarəetməsi', to: '/admin/staff', icon: <UserCog size={18} /> },
     { label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
@@ -44,9 +44,9 @@ const NAV_BY_ROLE: Record<Role, { section?: string; label: string; to: string; i
     { label: 'İdarə Paneli', to: '/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Sənədlər', to: '/declarations', icon: <FileText size={18} /> },
     { label: 'Şöbələr', to: '/departments', icon: <Building2 size={18} /> },
-    { label: 'Müfəttişlər', to: '/inspectors', icon: <Users size={18} /> },
+    { label: 'İnspektorlar', to: '/inspectors', icon: <Users size={18} /> },
     { section: 'ADMİNİSTRASİYA', label: 'Əməkdaşlar və Şöbələr', to: '/admin/staff', icon: <UserCog size={18} /> },
-    { label: 'Risk və Qayda Reyestri', to: '/admin/reference', icon: <Database size={18} /> },
+    { label: 'Risk və Uyğunluq Reyestri', to: '/admin/reference', icon: <Database size={18} /> },
     { section: 'SİSTEM', label: 'Jurnal', to: '/logs', icon: <Activity size={18} /> },
     { label: 'Bildirişlər', to: '/notifications', icon: <Bell size={18} /> },
     { label: 'Profil', to: '/profile', icon: <User size={18} /> },
@@ -129,11 +129,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         aria-label="Yan menyunu bağla"
         onClick={() => setSidebarOpen(false)}
       />
-      <aside className={cn('sidebar', role === 'pca' && 'pca-mode', sidebarOpen && 'open')}>
+      <aside className={cn('sidebar', sidebarOpen && 'open')}>
         <div className="brand">
           <div className="brand-mark"><LogoMark size={42} /></div>
           <div className="brand-text">
-            <strong>Gömrük Analizatoru</strong>
+            <strong>Customs Analyzer</strong>
             <small>{role === 'pca' ? 'PCA Audit Mühiti' : 'Gömrük Sistemi'}</small>
           </div>
           <button
@@ -165,7 +165,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <LogOut size={16} /> Çıxış
           </button>
           <div className="copyright">
-            © {new Date().getFullYear()} Gömrük Analizatoru<br />Bütün hüquqlar qorunur
+            © {new Date().getFullYear()} Customs Analyzer<br />Bütün hüquqlar qorunur
           </div>
         </div>
       </aside>

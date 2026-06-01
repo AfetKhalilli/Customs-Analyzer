@@ -13,6 +13,16 @@
   box-shadow: $shadow-xs;
 }
 
+// Scrollable table container — establishes a LOCAL scroll context so a table's
+// `th { position: sticky; top: 0 }` parks at the top of THIS box rather than the
+// global `.main` viewport. Without it the sticky header collides with the page
+// H1/Tabs that scroll above it. (Distinct from .table-wrap, which clips.)
+.table-scroll {
+  overflow: auto;
+  max-height: calc(100dvh - 290px);
+  border-radius: $radius-md;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -31,11 +41,13 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: $tracking-wide;
+    text-decoration: none;          // header labels are never underlined
     border-bottom: 1px solid $border-300;
     white-space: nowrap;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;                     // stay above tbody cells while scrolling
+    box-shadow: 0 1px 0 $border-300; // opaque seam so rows fully hide behind it
   }
   tbody tr {
     transition: background $dur-fast ease;

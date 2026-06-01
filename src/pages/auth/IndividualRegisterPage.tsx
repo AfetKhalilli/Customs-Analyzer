@@ -65,7 +65,7 @@ export function IndividualRegisterPage() {
       <div className="auth-hero">
         <div className="hero-brand">
           <LogoMark size={56} />
-          <div className="hb-title">Gömrük Analizatoru</div>
+          <div className="hb-title">Customs Analyzer</div>
         </div>
         <div className="hero-body">
           <h2>Fiziki şəxs hesabı yaradın</h2>

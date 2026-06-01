@@ -51,7 +51,7 @@ export function InspectorsPage() {
     <div>
       <div className="section-header">
         <div>
-          <h1>Müfəttişlər</h1>
+          <h1>İnspektorlar</h1>
           <p className="text-muted">{inspectors.length} müfəttiş</p>
         </div>
         <Link to="/admin/staff" className="btn">
@@ -71,7 +71,7 @@ export function InspectorsPage() {
             )}
           </div>
 
-          {inspectors.length === 0 ? <EmptyState title="Müfəttiş tapılmadı" /> : (
+          {inspectors.length === 0 ? <EmptyState title="İnspektor tapılmadı" /> : (
             <div className="table-wrap">
               <table className="table">
                 <thead>

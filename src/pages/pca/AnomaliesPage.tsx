@@ -2,13 +2,14 @@ import React from 'react';
 import { useDataStore } from '../../store/dataStore';
 import { EmptyState } from '../../components/ui/Primitives';
 import { formatDateTime, relativeTime } from '../../lib/utils';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, RotateCcw } from 'lucide-react';
 import { toast } from '../../store/toastStore';
 import { ANOMALY_PATTERN_LABEL } from '../../lib/i18n';
 
 export function AnomaliesPage() {
   const anomalies = useDataStore((s) => s.pcaAnomalies);
   const dismiss = useDataStore((s) => s.dismissAnomaly);
+  const restore = useDataStore((s) => s.restoreAnomaly);
   const [showDismissed, setShowDismissed] = React.useState(false);
   const [sevFilter, setSevFilter] = React.useState('');
   const [patternFilter, setPatternFilter] = React.useState('');
@@ -21,10 +22,15 @@ export function AnomaliesPage() {
   });
 
   const patterns = Array.from(new Set(anomalies.map((a) => a.patternCode)));
+  const dismissedCount = anomalies.filter((a) => a.dismissed).length;
 
   const handleDismiss = (id: string) => {
     dismiss(id);
-    toast.info('Anomaliya gizlədildi');
+    toast.info('Anomaliya gizlədildi — «Gizlədilmişləri göstər» ilə bərpa edə bilərsiniz');
+  };
+  const handleRestore = (id: string) => {
+    restore(id);
+    toast.success('Anomaliya bərpa edildi');
   };
 
   return (
@@ -38,6 +44,13 @@ export function AnomaliesPage() {
 
       <div className="card">
         <div className="card-body">
+          <div className="banner info" style={{ marginBottom: 12 }}>
+            <AlertTriangle size={18} />
+            <div className="b-body">
+              <div className="b-title">«Gizlət» nə üçündür?</div>
+              <div>Yanlış-müsbət və ya artıq araşdırılmış anomaliyanı siyahıdan müvəqqəti gizlədir — qeyd silinmir. İstənilən vaxt «Gizlədilmişləri göstər» seçimi ilə baxıb «Bərpa et» düyməsi ilə geri qaytara bilərsiniz.</div>
+            </div>
+          </div>
           <div className="filter-bar">
             <select className="select" value={sevFilter} onChange={(e) => setSevFilter(e.target.value)}>
               <option value="">Bütün şiddət səviyyələri</option>
@@ -52,7 +65,7 @@ export function AnomaliesPage() {
             </select>
             <label className="checkbox-row" style={{ alignItems: 'center', margin: 0 }}>
               <input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} />
-              <span>Gizlədilmiş anomaliyaları göstər</span>
+              <span>Gizlədilmişləri göstər{dismissedCount > 0 ? ` (${dismissedCount})` : ''}</span>
             </label>
           </div>
 
@@ -80,8 +93,12 @@ export function AnomaliesPage() {
                         {a.affectedDeclarationIds.length > 0 && ` · ${a.affectedDeclarationIds.length} sənəd təsirlənib`}
                       </div>
                     </div>
-                    {!a.dismissed && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleDismiss(a.id)}>
+                    {a.dismissed ? (
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleRestore(a.id)}>
+                        <RotateCcw size={14} /> Bərpa et
+                      </button>
+                    ) : (
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleDismiss(a.id)} title="Anomaliyanı siyahıdan müvəqqəti gizlət (silmir)">
                         <X size={14} /> Gizlət
                       </button>
                     )}

@@ -413,3 +413,49 @@
   color: $brand-700;
   font-weight: 500;
 }
+
+// ── Two-step HS code picker ────────────────────────────────────────────────
+.hs-step-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: $space-2;
+
+  @include bp('max-md') { grid-template-columns: 1fr; }
+}
+
+.hs-confirmed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-3;
+  padding: 10px $space-3;
+  border: 1px solid $success-600;
+  background: $success-50;
+  border-radius: $radius-sm;
+
+  .hs-confirmed-main { display: flex; align-items: flex-start; gap: $space-2; }
+  .hs-confirmed-check {
+    display: inline-grid; place-items: center;
+    width: 22px; height: 22px; flex-shrink: 0;
+    border-radius: 50%;
+    background: $success-600; color: #fff;
+    font-size: 13px; font-weight: 700;
+  }
+}
+
+.hs-confirmed-sub {
+  font-size: $fs-sm;
+  color: $text-500;
+  margin-top: 2px;
+}
+
+.hs-pending {
+  padding: $space-3;
+  border: 1px dashed $brand-600;
+  background: $brand-50;
+  border-radius: $radius-sm;
+
+  .hs-pending-title { font-weight: 600; font-size: $fs-sm; color: $brand-700; margin-bottom: 6px; }
+  .hs-pending-body { margin-bottom: 10px; }
+  .hs-pending-actions { display: flex; gap: $space-2; }
+}
